@@ -14,6 +14,7 @@ own websites call from a browser:
 | `kmart` | [`kmart-cli`](apps/kmart-cli) | Kmart, Australia and New Zealand off one backend |
 | `twlnz` | [`the-warehouse-nz-cli`](apps/the-warehouse-nz-cli) | The Warehouse NZ |
 | `bgnz` | [`briscoe-group-nz-cli`](apps/briscoe-group-nz-cli) | Briscoes and Rebel Sport, one Magento backend behind a `store` header |
+| `mitre10` | [`mitre10-nz-cli`](apps/mitre10-nz-cli) | Mitre 10 NZ — nationwide per-store stock in one call |
 
 None of the retailers offer a public API. Everything here is built by reading
 the sites' own traffic, and it breaks when they change something.
