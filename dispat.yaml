@@ -29,3 +29,4 @@ dependencies:
   kmart-cli: [cli-kit, net-kit, kmart-api, build-kit]
   bgnz-api: [net-kit]
   briscoe-group-nz-cli: [cli-kit, net-kit, bgnz-api, build-kit]
+  mitre10-api: [net-kit]

@@ -1,0 +1,17 @@
+scripts:
+  build: cargo build
+  test: cargo test
+  fmt: cargo fmt
+  fmt-check: if cargo fmt --version >/dev/null 2>&1; then cargo fmt --check; else echo 'rustfmt not installed, skipping'; fi
+  lint: if cargo clippy --version >/dev/null 2>&1; then cargo clippy --all-targets -- -D warnings; else echo 'clippy not installed, skipping'; fi
+  check:
+    - if cargo fmt --version >/dev/null 2>&1; then cargo fmt --check; else echo 'rustfmt not installed, skipping'; fi
+    - if cargo clippy --version >/dev/null 2>&1; then cargo clippy --all-targets -- -D warnings; else echo 'clippy not installed, skipping'; fi
+    - cargo build
+    - cargo test
+  sync-lock: cargo metadata --offline --format-version 1 >/dev/null 2>&1 || cargo metadata --format-version 1 >/dev/null
+autoVersion:
+  enabled: true
+  range: caret
+  syncLock:
+    - sync-lock

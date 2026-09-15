@@ -49,6 +49,7 @@ Per retailer:
 | [`kmart-api`](packages/kmart-api) | Kmart's catalogue, stock, cart and login, both countries |
 | [`twlnz-api`](packages/twlnz-api) | The Warehouse's Salesforce storefront — mostly HTML, and the one crate that parses it |
 | [`bgnz-api`](packages/bgnz-api) | Briscoes and Rebel Sport: Klevu search, Magento GraphQL, the Gigya login |
+| [`mitre10-api`](packages/mitre10-api) | Mitre 10: Algolia search and browse, the SAP Commerce OCC API, an OAuth2 PKCE login |
 
 Two conventions:
 

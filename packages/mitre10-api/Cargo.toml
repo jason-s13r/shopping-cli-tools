@@ -1,0 +1,22 @@
+[package]
+name = "mitre10-api"
+version = "0.0.0"
+edition = "2021"
+description = "Client for the Mitre 10 New Zealand storefront: catalogue, search, stores, stock, cart and account"
+license = "MIT"
+publish = false
+
+[dependencies]
+base64 = "0.22"
+net-kit = { path = "../net-kit", version = "^0.1.1" }
+rand = "0.9"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+thiserror = "2"
+url = "2"
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+wiremock = "0.6"
