@@ -1,6 +1,6 @@
 [package]
 name = "mitre10-nz-cli"
-version = "0.0.0"
+version = "0.1.0"
 edition = "2021"
 description = "An unofficial command line tool for Mitre 10 New Zealand"
 license = "MIT"
@@ -17,7 +17,7 @@ path = "src/main.rs"
 build-kit = { path = "../../packages/build-kit", version = "^0.3.0" }
 cli-kit = { path = "../../packages/cli-kit", version = "^0.3.0" }
 net-kit = { path = "../../packages/net-kit", version = "^0.1.1" }
-mitre10-api = { path = "../../packages/mitre10-api", version = "^0.0.0" }
+mitre10-api = { path = "../../packages/mitre10-api", version = "^0.1.0" }
 
 clap = { version = "4", features = ["derive"] }
 clap_complete = "4"

@@ -1,6 +1,6 @@
 [package]
 name = "mitre10-api"
-version = "0.0.0"
+version = "0.1.0"
 edition = "2021"
 description = "Client for the Mitre 10 New Zealand storefront: catalogue, search, stores, stock, cart and account"
 license = "MIT"

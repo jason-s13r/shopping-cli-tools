@@ -1528,7 +1528,7 @@ dependencies = [
 
 [[package]]
 name = "mitre10-api"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "base64",
  "net-kit",
@@ -1542,7 +1542,7 @@ dependencies = [
 
 [[package]]
 name = "mitre10-nz-cli"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "assert_cmd",
  "build-kit",
