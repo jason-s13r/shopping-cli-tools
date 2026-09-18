@@ -58,11 +58,7 @@ async fn login(
         None => prompt(&format!("{} email", app.banner))?,
     };
     let password = match &password_command {
-        Some(command) => {
-            net_kit::password::Source::Command(command.clone())
-                .password()
-                .await?
-        }
+        Some(command) => net_kit::run::capturing("password_command", command).await?,
         None => prompt_password("Password")?,
     };
 
