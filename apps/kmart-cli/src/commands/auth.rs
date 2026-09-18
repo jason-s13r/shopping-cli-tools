@@ -74,11 +74,7 @@ async fn login(
     // and the password never touches this process's output or its arguments.
     let command = password_command.or_else(|| app.config.auth.password_command.clone());
     let password = match &command {
-        Some(command) => {
-            net_kit::password::Source::Command(command.clone())
-                .password()
-                .await?
-        }
+        Some(command) => net_kit::run::capturing("password_command", command).await?,
         None => prompt_password("Password")?,
     };
 
@@ -344,12 +340,15 @@ async fn refresh(app: &App, headless: bool, direct: bool, force: bool) -> AppRes
         eprintln!("kmart: run `kmart auth login`");
         return Err(AppError::Reported(3));
     };
-    let Some(source) = source else {
+    let password = match source {
+        Some(source) => source.password().await?,
+        None => None,
+    };
+    let Some(password) = password else {
         eprintln!("kmart: {why}, and there is no password to sign in again with");
         eprintln!("kmart: run `kmart auth login`, or set `auth.password_command`");
         return Err(AppError::Reported(3));
     };
-    let password = source.password().await?;
 
     if direct {
         return direct_login(app, &email, &password).await;

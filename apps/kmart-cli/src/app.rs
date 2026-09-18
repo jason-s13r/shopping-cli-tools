@@ -219,19 +219,16 @@ impl App {
             auth_country,
         });
 
-        // Only offered when there is both an email to sign in *as* and a
-        // password to do it with. Without either, the client renews from the
-        // refresh token or reports a lapsed session -- rather than prompting
-        // from inside a call that was meant to read a price.
-        let password = net_kit::password::Source::resolve(
-            self.config.auth.password_command.as_deref(),
-            &secrets,
-        )
-        .ok()
-        .flatten();
-        let reauth = email
-            .zip(password)
-            .map(|(email, password)| kmart_api::Reauth { email, password });
+        // Only offered when there is an email to sign in *as*. The password is
+        // named, not read: a command that renews from the refresh token, or
+        // never renews at all, should not pay a keychain prompt for one.
+        let reauth = email.map(|email| kmart_api::Reauth {
+            email,
+            password: net_kit::password::Source::named(
+                self.config.auth.password_command.as_deref(),
+                &secrets,
+            ),
+        });
 
         Ok(Client::new(
             http.clone(),
