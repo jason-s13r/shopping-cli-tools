@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use cli_kit::{Format, Out};
-use gsnz_core::{Error, Result, RetailerId};
+use gsnz_core::{Result, RetailerId};
 use net_kit::{Backend, Paths, Secrets};
 
 use crate::cli::Cli;
@@ -208,11 +208,10 @@ impl Factory {
             &self.paths.state_dir,
         );
         let paths = self.paths.scoped(family);
-        let password = net_kit::password::Source::resolve(
+        let password = net_kit::password::Source::named(
             self.config.auth.password_command.as_deref(),
             &secrets,
-        )
-        .map_err(|e| Error::Other(e.to_string()))?;
+        );
         match id {
             RetailerId::NewWorld | RetailerId::PaknSave => {
                 let banner = foodstuffs::convert::banner(id).expect("a Foodstuffs banner");
