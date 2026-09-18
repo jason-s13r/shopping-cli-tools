@@ -29,6 +29,8 @@ const TOKEN_MAX_AGE_SECS: u64 = 300;
 /// form is what mints the cookie.
 pub struct Reauth {
     pub email: String,
+    /// Named rather than fetched: most clients never renew, and reading a
+    /// password is a keychain prompt.
     pub password: net_kit::password::Source,
     pub secrets: net_kit::Secrets,
 }
@@ -262,7 +264,13 @@ impl Client {
     /// Sign in again and keep what it produces.
     pub async fn renew(&self) -> Result<Session> {
         let reauth = self.reauth.as_ref().ok_or(Error::NotSignedIn)?;
-        let password = reauth.password.password().await?;
+        // A named source with nothing behind it is the same dead end as no
+        // source at all, only found out later.
+        let password = reauth
+            .password
+            .password()
+            .await?
+            .ok_or(Error::NotSignedIn)?;
         let trace: crate::auth::Trace<'_> = &|m| self.trace(m);
         let session =
             crate::auth::login(&self.http, &self.endpoints, &reauth.email, &password, trace)
