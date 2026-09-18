@@ -733,7 +733,7 @@ dependencies = [
 
 [[package]]
 name = "farmers-api"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "net-kit",
  "scraper",
@@ -1485,7 +1485,7 @@ dependencies = [
 
 [[package]]
 name = "net-kit"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "base64",
  "directories",

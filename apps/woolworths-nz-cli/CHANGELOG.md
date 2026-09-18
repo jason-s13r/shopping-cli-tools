@@ -1,5 +1,21 @@
 # Changelog
 
+## woolworths-nz-cli/v0.3.2 (2026-09-18)
+
+### Fixes
+
+- stop reading the password on every command
+  The client was built with the password already fetched, so every command
+  paid a keychain prompt for a renewal that almost never happens. It now
+  carries where the password is. auth status and auth refresh still ask
+  outright, because that is what they report on.
+
+### Dependencies
+
+- net-kit: 0.1.1 -> 0.1.2
+- wwnz-api: 0.1.0 -> 0.1.1
+
+
 ## woolworths-nz-cli/v0.3.1 (2026-09-11)
 
 ### Dependencies

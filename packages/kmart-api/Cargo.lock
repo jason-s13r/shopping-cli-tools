@@ -1300,7 +1300,7 @@ dependencies = [
 
 [[package]]
 name = "kmart-api"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "base64",
  "net-kit",
@@ -1417,7 +1417,7 @@ dependencies = [
 
 [[package]]
 name = "net-kit"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "base64",
  "directories",

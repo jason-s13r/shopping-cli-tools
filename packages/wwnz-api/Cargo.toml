@@ -1,13 +1,13 @@
 [package]
 name = "wwnz-api"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Client for the Woolworths NZ GraphQL API and its Auth0 login flow"
 license = "MIT"
 publish = false
 
 [dependencies]
-net-kit = { path = "../net-kit", version = "^0.1.1" }
+net-kit = { path = "../net-kit", version = "^0.1.2" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"

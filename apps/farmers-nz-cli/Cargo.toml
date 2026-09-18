@@ -1,6 +1,6 @@
 [package]
 name = "farmers-nz-cli"
-version = "0.0.0"
+version = "0.1.0"
 edition = "2021"
 description = "An unofficial command line tool for Farmers New Zealand"
 license = "MIT"
@@ -16,8 +16,8 @@ path = "src/main.rs"
 # carrying a version is left pinned to a release that no longer exists.
 build-kit = { path = "../../packages/build-kit", version = "^0.3.0" }
 cli-kit = { path = "../../packages/cli-kit", version = "^0.3.0" }
-net-kit = { path = "../../packages/net-kit", version = "^0.1.1" }
-farmers-api = { path = "../../packages/farmers-api", version = "^0.0.0" }
+net-kit = { path = "../../packages/net-kit", version = "^0.1.2" }
+farmers-api = { path = "../../packages/farmers-api", version = "^0.1.0" }
 
 clap = { version = "4", features = ["derive"] }
 clap_complete = "4"

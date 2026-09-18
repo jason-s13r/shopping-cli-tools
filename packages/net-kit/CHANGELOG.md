@@ -1,5 +1,20 @@
 # Changelog
 
+## net-kit/v0.1.2 (2026-09-18)
+
+### Fixes
+
+- fetch each stored secret once per process
+  Every credential-store access is a keychain prompt on a Mac, and a
+  single command made several: the same session read three times over, a
+  password read whether or not anything would spend it.
+
+  A store now remembers what it has fetched, skips a write that would
+  change nothing, and keeps its contents out of Debug. Source::Stored
+  holds the store rather than the password, so a caller can name where the
+  password is and read it only when signing in again.
+
+
 ## net-kit/v0.1.1 (2026-09-11)
 
 ### Fixes

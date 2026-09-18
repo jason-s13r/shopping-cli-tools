@@ -1,5 +1,20 @@
 # Changelog
 
+## fsnz-api/v0.2.1 (2026-09-18)
+
+### Fixes
+
+- read the password only when the refresh token fails
+  It was fetched before every renewal, which is a keychain prompt for
+  something the refresh token usually makes unnecessary. Club Plus's own
+  refusal is kept, so it is still the error when there turns out to be no
+  password.
+
+### Dependencies
+
+- net-kit: 0.1.1 -> 0.1.2
+
+
 ## fsnz-api/v0.2.0 (2026-09-03)
 
 ### Features

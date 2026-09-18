@@ -1340,7 +1340,7 @@ dependencies = [
 
 [[package]]
 name = "net-kit"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "base64",
  "directories",
@@ -2474,7 +2474,7 @@ checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
 
 [[package]]
 name = "wwnz-api"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64",
  "net-kit",

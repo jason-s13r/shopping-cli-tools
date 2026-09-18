@@ -1,5 +1,19 @@
 # Changelog
 
+## briscoe-group-nz-cli/v0.1.1 (2026-09-18)
+
+### Fixes
+
+- run the password command directly
+  It went through a password source, which now answers with an Option
+  because a stored password may not be there. Running the configured
+  command is not that question.
+
+### Dependencies
+
+- net-kit: 0.1.1 -> 0.1.2
+
+
 ## briscoe-group-nz-cli/v0.1.0 (2026-09-11)
 
 ### Features

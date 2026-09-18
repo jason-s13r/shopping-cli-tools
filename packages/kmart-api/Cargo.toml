@@ -1,13 +1,13 @@
 [package]
 name = "kmart-api"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 description = "Client for Kmart Australia and New Zealand: its GraphQL gateway, its Constructor.io catalogue and its Auth0 login"
 license = "MIT"
 publish = false
 
 [dependencies]
-net-kit = { path = "../net-kit", version = "^0.1.1" }
+net-kit = { path = "../net-kit", version = "^0.1.2" }
 base64 = "0.22"
 rand = "0.9"
 serde = { version = "1", features = ["derive"] }

@@ -1,6 +1,6 @@
 [package]
 name = "foodstuffs-nz-cli"
-version = "0.6.1"
+version = "0.6.2"
 edition = "2021"
 description = "Unofficial CLI for New World and PAK'nSAVE (Foodstuffs NZ)"
 license = "MIT"
@@ -21,10 +21,10 @@ uuid = { version = "1", features = ["v4"] }
 
 build-kit = { path = "../../packages/build-kit", version = "^0.3.0" }
 cli-kit = { path = "../../packages/cli-kit", version = "^0.3.0" }
-fsnz-api = { path = "../../packages/fsnz-api", version = "^0.2.0" }
+fsnz-api = { path = "../../packages/fsnz-api", version = "^0.2.1" }
 gsnz-core = { path = "../../packages/gsnz-core", version = "^0.2.0" }
 gsnz-ui = { path = "../../packages/gsnz-ui", version = "^0.2.0" }
-net-kit = { path = "../../packages/net-kit", version = "^0.1.1" }
+net-kit = { path = "../../packages/net-kit", version = "^0.1.2" }
 
 # The stamping half only. Its runtime deps -- the whole HTTP stack -- have no
 # business being built before the crate itself is.

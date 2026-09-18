@@ -903,7 +903,7 @@ checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
 name = "foodstuffs-nz-cli"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "assert_cmd",
  "async-trait",
@@ -980,7 +980,7 @@ dependencies = [
 
 [[package]]
 name = "fsnz-api"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "net-kit",
  "serde",
@@ -1623,7 +1623,7 @@ dependencies = [
 
 [[package]]
 name = "net-kit"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "base64",
  "directories",

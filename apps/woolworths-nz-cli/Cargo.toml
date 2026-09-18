@@ -1,6 +1,6 @@
 [package]
 name = "woolworths-nz-cli"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 description = "Unofficial CLI for Woolworths NZ product search, cart and orders"
 license = "MIT"
@@ -22,8 +22,8 @@ build-kit = { path = "../../packages/build-kit", version = "^0.3.0" }
 cli-kit = { path = "../../packages/cli-kit", version = "^0.3.0" }
 gsnz-core = { path = "../../packages/gsnz-core", version = "^0.2.0" }
 gsnz-ui = { path = "../../packages/gsnz-ui", version = "^0.2.0" }
-net-kit = { path = "../../packages/net-kit", version = "^0.1.1" }
-wwnz-api = { path = "../../packages/wwnz-api", version = "^0.1.0" }
+net-kit = { path = "../../packages/net-kit", version = "^0.1.2" }
+wwnz-api = { path = "../../packages/wwnz-api", version = "^0.1.1" }
 
 # The stamping half only. Its runtime deps -- the whole HTTP stack -- have no
 # business being built before the crate itself is.

@@ -363,7 +363,7 @@ dependencies = [
 
 [[package]]
 name = "briscoe-group-nz-cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "assert_cmd",
  "bgnz-api",
@@ -1547,7 +1547,7 @@ dependencies = [
 
 [[package]]
 name = "net-kit"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "base64",
  "directories",

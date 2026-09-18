@@ -1020,7 +1020,7 @@ dependencies = [
 
 [[package]]
 name = "fsnz-api"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "net-kit",
  "serde",
@@ -1170,7 +1170,7 @@ checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
 name = "grocery-nz-cli"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "assert_cmd",
  "async-trait",
@@ -1698,7 +1698,7 @@ dependencies = [
 
 [[package]]
 name = "net-kit"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "base64",
  "directories",
@@ -3007,7 +3007,7 @@ checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
 
 [[package]]
 name = "wwnz-api"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "net-kit",
  "serde",
