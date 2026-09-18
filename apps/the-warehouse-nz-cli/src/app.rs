@@ -134,24 +134,17 @@ impl App {
             .map(StoredSession::session)
             .unwrap_or_default();
 
-        // Only offered when there is both an email to sign in *as* and a
-        // password to do it with. Without either, the client reports a lapsed
-        // session rather than prompting from inside a call that was meant to
-        // read a price.
-        let password = net_kit::password::Source::resolve(
-            self.config.auth.password_command.as_deref(),
-            &secrets,
-        )
-        .ok()
-        .flatten();
-        let reauth = stored
-            .and_then(|s| s.email)
-            .zip(password)
-            .map(|(email, password)| twlnz_api::Reauth {
-                email,
-                password,
-                secrets: self.secrets(),
-            });
+        // Only offered when there is an email to sign in *as*. The password is
+        // named, not read: a command that never renews should not pay a
+        // keychain prompt for one.
+        let reauth = stored.and_then(|s| s.email).map(|email| twlnz_api::Reauth {
+            email,
+            password: net_kit::password::Source::named(
+                self.config.auth.password_command.as_deref(),
+                &secrets,
+            ),
+            secrets: self.secrets(),
+        });
 
         Ok(Client::new(http, self.endpoints(), session)
             .with_reauth(reauth)
