@@ -567,11 +567,14 @@ impl Client {
             }
         }
 
-        let reauth = self.reauth.as_ref().ok_or(match held {
+        // The same dead end whether there are no credentials or a named
+        // password turns out to have nothing behind it.
+        let unrenewable = || match held {
             Some(_) => Error::SessionExpired,
             None => Error::NotSignedIn,
-        })?;
-        let password = reauth.password.password().await?;
+        };
+        let reauth = self.reauth.as_ref().ok_or_else(unrenewable)?;
+        let password = reauth.password.password().await?.ok_or_else(unrenewable)?;
         // Seed whatever admission this session holds: the auth host is under
         // `.kmart.com.au`, so the Australian bucket is the one that covers it.
         let admission = self.session().admission(Country::Au);
