@@ -24,7 +24,7 @@ pub struct Woolworths {
     endpoints: Endpoints,
     paths: Paths,
     secrets: Secrets,
-    password: Option<net_kit::password::Source>,
+    password: net_kit::password::Source,
     /// A `--store` given for this run. Recorded rather than applied: see
     /// [`Woolworths::no_store_override`].
     store_override: Option<String>,
@@ -35,7 +35,7 @@ pub struct Setup {
     pub endpoints: Endpoints,
     pub paths: Paths,
     pub secrets: Secrets,
-    pub password: Option<net_kit::password::Source>,
+    pub password: net_kit::password::Source,
     pub store_override: Option<String>,
     /// Narrate the login flow on stderr. Injected rather than read here: no
     /// library in this tree reads the environment.
@@ -91,17 +91,18 @@ impl Woolworths {
         let stored = self.stored()?.ok_or(Error::NeedsLogin { retailer: ID })?;
         let session = stored.session();
         let before = session.cookies();
-        // Without a password there is nothing to renew from, and saying so is
-        // better than a login flow that fails at the password page.
-        let reauth = self
-            .password
+        // An account to sign in as is what decides this; the password is named
+        // rather than read, so a command that never renews pays no keychain
+        // prompt for one.
+        let reauth = stored
+            .email
             .clone()
-            .map(|password| wwnz_api::Reauth {
-                email: stored.email.clone().unwrap_or_default(),
-                password,
+            .filter(|email| !email.is_empty())
+            .map(|email| wwnz_api::Reauth {
+                email,
+                password: self.password.clone(),
                 secrets: self.secrets.clone(),
-            })
-            .filter(|r| !r.email.is_empty());
+            });
         let client = wwnz_api::Client::new(self.http.clone(), self.endpoints.clone(), session)
             .with_reauth(reauth);
         Ok(Held {
@@ -410,7 +411,7 @@ impl Retailer for Woolworths {
             detail: Some(format!(
                 "signed in {} ago; {}",
                 cli_kit::human_duration(std::time::Duration::from_secs(age)),
-                if self.password.is_some() {
+                if self.password.exists().unwrap_or(false) {
                     "renewable from the stored password"
                 } else {
                     "renewing needs a password, since the cookie cannot be refreshed"
