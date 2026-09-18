@@ -216,11 +216,10 @@ impl Factory {
             &self.paths.state_dir,
         );
         let paths = self.paths.scoped(family);
-        let password = net_kit::password::Source::resolve(
+        let password = net_kit::password::Source::named(
             self.config.auth.password_command.as_deref(),
             &secrets,
-        )
-        .map_err(|e| Error::Other(e.to_string()))?;
+        );
 
         let banner = foodstuffs::convert::banner(id)
             .ok_or_else(|| Error::Other(format!("{id} is not a Foodstuffs banner")))?;

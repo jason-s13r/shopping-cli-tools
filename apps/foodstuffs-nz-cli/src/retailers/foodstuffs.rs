@@ -36,7 +36,7 @@ pub struct Foodstuffs {
     secrets: Secrets,
     token_command: Option<String>,
     explicit_token: Option<String>,
-    password: Option<net_kit::password::Source>,
+    password: net_kit::password::Source,
     store_id: Option<String>,
     /// Echoed back to the SSO exchange as `fingerprintGuest`. Taken from the
     /// client that will send the request rather than named twice.
@@ -53,7 +53,7 @@ pub struct Setup {
     pub secrets: Secrets,
     pub token_command: Option<String>,
     pub explicit_token: Option<String>,
-    pub password: Option<net_kit::password::Source>,
+    pub password: net_kit::password::Source,
     pub store_id: Option<String>,
 }
 
@@ -115,7 +115,7 @@ impl Foodstuffs {
             secrets: &self.secrets,
             explicit: self.explicit_token.as_deref(),
             token_command: self.token_command.as_deref(),
-            password: self.password.as_ref(),
+            password: Some(&self.password),
             user_agent: &self.user_agent,
             guest,
             force_refresh: false,
@@ -356,7 +356,7 @@ impl Retailer for Foodstuffs {
             detail: Some(
                 if renewable {
                     "renewable without a password"
-                } else if self.password.is_some() {
+                } else if self.password.exists().unwrap_or(false) {
                     "renewable from the stored password"
                 } else {
                     "cannot be renewed; sign in again when it lapses"
@@ -406,7 +406,7 @@ impl Retailer for Foodstuffs {
     async fn refresh_session(&self) -> Result<AuthStatus> {
         let device_id = fsnz_api::auth::device_id(&self.paths).map_err(|e| self.err(e))?;
         let cfg = self.clubplus_config(&device_id);
-        fsnz_api::auth::session::active_session(&cfg, &self.secrets, self.password.as_ref(), true)
+        fsnz_api::auth::session::active_session(&cfg, &self.secrets, Some(&self.password), true)
             .await
             .map_err(|e| self.err(e))?;
         self.auth_status().await
