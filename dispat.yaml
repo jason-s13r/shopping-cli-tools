@@ -32,3 +32,4 @@ dependencies:
   mitre10-api: [net-kit]
   mitre10-nz-cli: [cli-kit, net-kit, mitre10-api, build-kit]
   farmers-api: [net-kit]
+  farmers-nz-cli: [cli-kit, net-kit, farmers-api, build-kit]
