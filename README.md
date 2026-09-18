@@ -3,7 +3,7 @@
 Command line tools for shopping at New Zealand retailers — and the libraries
 they are made of.
 
-Six binaries, all unofficial, all reverse-engineered from what the retailers'
+Eight binaries, all unofficial, all reverse-engineered from what the retailers'
 own websites call from a browser:
 
 | Binary | App | Covers |
@@ -15,6 +15,7 @@ own websites call from a browser:
 | `twlnz` | [`the-warehouse-nz-cli`](apps/the-warehouse-nz-cli) | The Warehouse NZ |
 | `bgnz` | [`briscoe-group-nz-cli`](apps/briscoe-group-nz-cli) | Briscoes and Rebel Sport, one Magento backend behind a `store` header |
 | `mitre10` | [`mitre10-nz-cli`](apps/mitre10-nz-cli) | Mitre 10 NZ — nationwide per-store stock in one call |
+| `farmers` | [`farmers-nz-cli`](apps/farmers-nz-cli) | Farmers NZ — an Intershop storefront a browser has to open the door to |
 
 None of the retailers offer a public API. Everything here is built by reading
 the sites' own traffic, and it breaks when they change something.
@@ -28,7 +29,7 @@ not before. dispat discovers projects by their directory, so adding one under
 
 ## The libraries
 
-The apps are thin front ends. The ten crates in [`packages/`](packages) hold
+The apps are thin front ends. The twelve crates in [`packages/`](packages) hold
 the rest.
 
 Shared:
@@ -51,6 +52,7 @@ Per retailer:
 | [`twlnz-api`](packages/twlnz-api) | The Warehouse's Salesforce storefront — mostly HTML, and the one crate that parses it |
 | [`bgnz-api`](packages/bgnz-api) | Briscoes and Rebel Sport: Klevu search, Magento GraphQL, the Gigya login |
 | [`mitre10-api`](packages/mitre10-api) | Mitre 10: Algolia search and browse, the SAP Commerce OCC API, an OAuth2 PKCE login |
+| [`farmers-api`](packages/farmers-api) | Farmers: an Intershop REST API, its HTML pipelines for stock and sign-in, and Constructor.io for search |
 
 Two conventions:
 
@@ -70,7 +72,9 @@ backend is scored as a bot and answered with a bare 400 or a challenge page.
 Cookies live in the OS credential store rather than a plaintext file. Kmart's
 and Briscoes' bot checks cannot be passed by an HTTP client at all, so those
 logins import browser cookies or drive a real browser for the one step that
-needs it.
+needs it. Farmers goes further: Akamai admits only a jar a real browser earned,
+so `farmers` starts [camoufox](https://camoufox.com) once per run, loads one
+page, and spends the cookies over HTTP from there.
 
 ## Install
 
@@ -138,10 +142,10 @@ is built on its own runner.
 ## Disclaimer
 
 Not affiliated with Foodstuffs New Zealand, New World, PAK'nSAVE, Woolworths
-New Zealand, The Warehouse, Kmart, Briscoes or Rebel Sport. There are no public
-APIs. These tools call the same undocumented endpoints the retailers' own
-frontends call, and can break whenever they change something. Use at your own
-risk.
+New Zealand, The Warehouse, Kmart, Briscoes, Rebel Sport, Mitre 10 or Farmers.
+There are no public APIs. These tools call the same undocumented endpoints the
+retailers' own frontends call, and can break whenever they change something.
+Use at your own risk.
 
 ## License
 
