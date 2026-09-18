@@ -1,0 +1,8 @@
+# Libraries take values. Reading the process environment from inside a library
+# is what makes the existing CLIs impossible to test without `set_var`, and what
+# would force every consumer onto one env-var prefix. The app reads env, once.
+disallowed-methods = [
+  { path = "std::env::var", reason = "take the value as a parameter; the app reads env" },
+  { path = "std::env::var_os", reason = "take the value as a parameter; the app reads env" },
+  { path = "std::env::set_var", reason = "never; construct the value the test needs" },
+]

@@ -31,3 +31,4 @@ dependencies:
   briscoe-group-nz-cli: [cli-kit, net-kit, bgnz-api, build-kit]
   mitre10-api: [net-kit]
   mitre10-nz-cli: [cli-kit, net-kit, mitre10-api, build-kit]
+  farmers-api: [net-kit]
