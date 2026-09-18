@@ -71,11 +71,7 @@ async fn login(
     // out of.
     let command = password_command.or_else(|| app.config.auth.password_command.clone());
     let password = match (&command, stdin) {
-        (Some(command), _) => {
-            net_kit::password::Source::Command(command.clone())
-                .password()
-                .await?
-        }
+        (Some(command), _) => net_kit::run::capturing("password_command", command).await?,
         (None, true) => prompt_or_stdin("Password").map_err(|e| AppError::usage(e.to_string()))?,
         (None, false) => prompt_password("Password").map_err(|e| AppError::usage(e.to_string()))?,
     };

@@ -125,7 +125,7 @@ impl App {
         let session = StoredSession::load(&secrets)?
             .map(|s| s.session())
             .unwrap_or_default();
-        let reauth = self.reauth(session.email.clone())?;
+        let reauth = self.reauth(session.email.clone());
         Ok(Client::new(self.http()?, self.endpoints(), session)
             .with_session_store(Some(SessionStore { secrets }))
             .with_reauth(reauth)
@@ -161,29 +161,18 @@ impl App {
         })
     }
 
-    /// What this client could sign itself in again with, if anything.
-    ///
-    /// Both halves are needed: an account to sign in *as*, which only a
-    /// previous login knows, and a password to sign in *with*. A configured
-    /// command beats the stored copy, which leaves a password manager as the
-    /// only place the password lives.
-    pub fn reauth(&self, email: Option<String>) -> AppResult<Option<Reauth>> {
+    /// Who this client could sign itself in again as, if anyone. The password
+    /// is left where it lies until something spends it.
+    pub fn reauth(&self, email: Option<String>) -> Option<Reauth> {
         let secrets = self.secrets();
-        let Some(email) = email else {
-            return Ok(None);
-        };
-        let Some(password) = net_kit::password::Source::resolve(
-            self.config.auth.password_command.as_deref(),
-            &secrets,
-        )?
-        else {
-            return Ok(None);
-        };
-        Ok(Some(Reauth {
-            email,
-            password,
+        Some(Reauth {
+            email: email?,
+            password: net_kit::password::Source::named(
+                self.config.auth.password_command.as_deref(),
+                &secrets,
+            ),
             secrets,
-        }))
+        })
     }
 
     /// The region a command uses when none was named: the flag, then config.
