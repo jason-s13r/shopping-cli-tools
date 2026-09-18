@@ -121,6 +121,10 @@ pub async fn active_session(
         });
     }
 
+    // Kept rather than reported: a refusal here is only the end of the road if
+    // there turns out to be no password, and the reason Club Plus gave is a
+    // better answer then than a generic one.
+    let mut refused = None;
     if let Some(refresh_token) = stored.refresh_token.as_deref() {
         match clubplus::refresh(cfg, refresh_token).await {
             Ok(session) => {
@@ -130,19 +134,22 @@ pub async fn active_session(
                     renewed: true,
                 });
             }
-            // Without a password this is the end of the road, so the reason
-            // Club Plus gave is the answer rather than a generic one.
-            Err(e) if password.is_none() => return Err(e),
             // A refresh token already spent, or a session ended elsewhere.
             // Signing in again is the only way past it.
-            Err(_) => {}
+            Err(e) => refused = Some(e),
         }
     }
 
-    let Some(source) = password else {
-        return Err(Error::SessionUnrenewable);
+    // The password is fetched here and nowhere earlier: on a Mac that is a
+    // keychain prompt, and the refresh above usually makes it unnecessary.
+    let password = match password {
+        Some(source) => source.password().await?,
+        None => None,
     };
-    let session = sign_in(cfg, &stored.email, source).await?;
+    let Some(password) = password else {
+        return Err(refused.unwrap_or(Error::SessionUnrenewable));
+    };
+    let session = sign_in(cfg, &stored.email, &password).await?;
     persist(secrets, &stored.email, &session)?;
     Ok(ActiveSession {
         session,
@@ -154,9 +161,8 @@ pub async fn active_session(
 ///
 /// Fails rather than prompts on a verification code: this runs underneath
 /// ordinary commands, where there is not necessarily anyone to type one.
-async fn sign_in(cfg: &Config<'_>, email: &str, source: &PasswordSource) -> Result<Session> {
-    let password = source.password().await?;
-    match clubplus::login(cfg, email, &password).await? {
+async fn sign_in(cfg: &Config<'_>, email: &str, password: &str) -> Result<Session> {
+    match clubplus::login(cfg, email, password).await? {
         clubplus::Login::Complete(session) => Ok(session),
         clubplus::Login::ChallengeRequired(challenge) => Err(Error::VerificationRequired {
             method: Some(challenge.method.clone()),
