@@ -536,12 +536,18 @@ async fn signing_out_when_no_one_is_signed_in_spends_no_request() {
 
 /// A client that can sign itself in again, filing into `dir`.
 fn client_with_reauth(server: &MockServer, dir: &std::path::Path) -> Client {
+    client(server).with_reauth(Some(reauth(dir)))
+}
+
+/// Credentials backed by a stored password, as `auth login` leaves behind.
+fn reauth(dir: &std::path::Path) -> farmers_api::Reauth {
     let secrets = net_kit::Secrets::new("farmers-api-test", net_kit::Backend::File, dir);
-    client(server).with_reauth(Some(farmers_api::Reauth {
+    net_kit::password::save(&secrets, "not-a-real-password").expect("stored");
+    farmers_api::Reauth {
         email: "shopper@example.invalid".into(),
-        password: net_kit::password::Source::Stored("not-a-real-password".into()),
+        password: net_kit::password::Source::named(None, &secrets),
         secrets,
-    }))
+    }
 }
 
 /// The sign-in page and a form that answers with a signed-in cookie.
@@ -612,7 +618,6 @@ async fn renewing_does_not_carry_a_stale_account_cookie_into_the_form() {
     mount_login(&server).await;
     let dir = tempfile::tempdir().expect("a temp dir");
 
-    let secrets = net_kit::Secrets::new("farmers-api-test", net_kit::Backend::File, dir.path());
     let stale = Session::from_cookies(
         [
             (
@@ -632,11 +637,7 @@ async fn renewing_does_not_carry_a_stale_account_cookie_into_the_form() {
             .with_search(server.uri()),
         stale,
     )
-    .with_reauth(Some(farmers_api::Reauth {
-        email: "shopper@example.invalid".into(),
-        password: net_kit::password::Source::Stored("not-a-real-password".into()),
-        secrets,
-    }));
+    .with_reauth(Some(reauth(dir.path())));
 
     client.renew().await.expect("signed in again");
 

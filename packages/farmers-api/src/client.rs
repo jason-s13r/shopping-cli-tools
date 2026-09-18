@@ -88,6 +88,8 @@ pub struct SessionStore {
 /// refresh token.
 pub struct Reauth {
     pub email: String,
+    /// Named rather than fetched: most clients never renew, and reading a
+    /// password is a keychain prompt.
     pub password: net_kit::password::Source,
     pub secrets: net_kit::Secrets,
 }
@@ -175,7 +177,8 @@ impl Client {
         self.warmer.is_some()
     }
 
-    /// Whether an expired session could be replaced without a person.
+    /// Whether there is an account to sign in as. Whether there is a password
+    /// is not known until one is spent; see [`Reauth`].
     pub fn can_reauth(&self) -> bool {
         self.reauth.is_some()
     }
@@ -1269,7 +1272,13 @@ impl Client {
     /// it runs the sign-in form again.
     pub async fn renew(&self) -> Result<Account> {
         let reauth = self.reauth.as_ref().ok_or(Error::NotSignedIn)?;
-        let password = reauth.password.password().await?;
+        // Nothing to sign in with reads as not being signed in, which is what
+        // it amounts to: the session is gone and cannot be replaced.
+        let password = reauth
+            .password
+            .password()
+            .await?
+            .ok_or(Error::NotSignedIn)?;
         self.trace(&format!(
             "signing in again from {}",
             reauth.password.describe()
