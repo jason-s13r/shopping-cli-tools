@@ -1,5 +1,16 @@
 # Changelog
 
+## wwnz-api/v0.1.2 (2026-09-19)
+
+### Fixes
+
+- name cart lines the variant fragments miss
+  The cart document reads a line's name from its variant, spreading only
+  GroceryVariant and RegulatedVariant. A general-merchandise line matches
+  neither, so it arrives unnamed and prints as a blank row. Look those up
+  by SKU through search, which knows every product.
+
+
 ## wwnz-api/v0.1.1 (2026-09-18)
 
 ### Fixes
