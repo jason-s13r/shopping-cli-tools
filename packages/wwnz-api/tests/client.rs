@@ -202,6 +202,78 @@ async fn the_cart_separates_the_line_total_from_the_order_subtotal() {
 }
 
 #[tokio::test]
+async fn a_line_whose_variant_type_carries_no_name_is_named_from_search() {
+    let server = MockServer::start().await;
+    mount(
+        &server,
+        "CustomerCart",
+        json!({ "customerCart": {
+            "key": "cart-1",
+            "lineItems": [
+                {
+                    "sku": "282768", "productVariantSku": "282768-EA", "quantity": 1,
+                    "product": { "brand": "Anchor", "variants": [{ "name": "Blue Milk", "key": "282768-EA" }] }
+                },
+                // General merchandise: the document spreads no fragment that
+                // matches, so the variant arrives with neither name nor key.
+                {
+                    "sku": "639411", "productVariantSku": "639411-EA", "quantity": 1,
+                    "product": { "brand": null, "variants": [{}] }
+                }
+            ]
+        }}),
+    )
+    .await;
+    mount(
+        &server,
+        "ProductSearch",
+        json!({ "My": { "products": {
+            "results": [product("639411", "Nylon Tongs 23cm", 7.00)],
+            "totalCount": 1, "totalPages": 1
+        }}}),
+    )
+    .await;
+
+    let cart = client(&server).cart().await.unwrap();
+    assert_eq!(
+        cart.lines[0].name, "Blue Milk",
+        "named lines are left alone"
+    );
+    assert_eq!(cart.lines[1].name, "Nylon Tongs 23cm");
+    assert_eq!(cart.lines[1].sku, "639411");
+    assert_eq!(cart.lines[1].brand.as_deref(), Some("Woolworths"));
+}
+
+#[tokio::test]
+async fn a_line_search_cannot_name_is_still_listed() {
+    let server = MockServer::start().await;
+    mount(
+        &server,
+        "CustomerCart",
+        json!({ "customerCart": {
+            "key": "cart-1",
+            "lineItems": [{
+                "sku": "639411", "productVariantSku": "639411-EA", "quantity": 1,
+                "lineTotal": { "afterDiscountAsCents": 700 },
+                "product": { "variants": [{}] }
+            }]
+        }}),
+    )
+    .await;
+    mount(
+        &server,
+        "ProductSearch",
+        json!({ "My": { "products": { "results": [], "totalCount": 0, "totalPages": 1 } } }),
+    )
+    .await;
+
+    let cart = client(&server).cart().await.unwrap();
+    assert_eq!(cart.lines.len(), 1);
+    assert_eq!(cart.lines[0].name, "", "blank, but the row survives");
+    assert_eq!(cart.lines[0].total_cents, Some(700));
+}
+
+#[tokio::test]
 async fn setting_quantities_sends_variant_keys_and_returns_the_new_cart() {
     let server = MockServer::start().await;
     Mock::given(method("POST"))

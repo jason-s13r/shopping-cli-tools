@@ -400,7 +400,9 @@ impl Client {
 
     pub async fn cart(&self) -> Result<Cart> {
         let data = self.call("CustomerCart", json!({})).await?;
-        read_cart(data, "customerCart")
+        let mut cart = read_cart(data, "customerCart")?;
+        self.name_unnamed_lines(&mut cart).await;
+        Ok(cart)
     }
 
     pub async fn cart_set(&self, changes: &[Change]) -> Result<Cart> {
@@ -413,12 +415,44 @@ impl Client {
                 json!({ "input": { "cartLineItemQuantityUpdates": changes } }),
             )
             .await?;
-        read_cart(data, "setCartLineItemQuantity")
+        let mut cart = read_cart(data, "setCartLineItemQuantity")?;
+        self.name_unnamed_lines(&mut cart).await;
+        Ok(cart)
     }
 
     pub async fn cart_clear(&self) -> Result<Cart> {
         let data = self.call("ClearCart", json!({})).await?;
         read_cart(data, "clearCart")
+    }
+
+    /// Name the lines the cart would not name.
+    ///
+    /// A line takes its name from its variant, and the cart document can only
+    /// spread the variant types it knows -- `GroceryVariant` and
+    /// `RegulatedVariant`. Anything else, which is most of general
+    /// merchandise, comes back with an unnamed variant and prints as a blank
+    /// row. Search knows the product by its SKU, so ask it for the gaps.
+    ///
+    /// Only a blank line costs a request, so a grocery cart pays nothing, and
+    /// a lookup that fails leaves the row as it was: a cart that cannot be
+    /// fully named is still worth printing.
+    async fn name_unnamed_lines(&self, cart: &mut Cart) {
+        for i in 0..cart.lines.len() {
+            if !cart.lines[i].name.trim().is_empty() || cart.lines[i].sku.is_empty() {
+                continue;
+            }
+            let sku = cart.lines[i].sku.clone();
+            let Ok(found) = self
+                .search(&SearchBy::Keyword(sku.clone()), 1, DEFAULT_SORT, false)
+                .await
+            else {
+                continue;
+            };
+            if let Some(found) = found.products.into_iter().find(|p| p.sku == sku) {
+                cart.lines[i].name = found.name;
+                cart.lines[i].brand = cart.lines[i].brand.take().or(found.brand);
+            }
+        }
     }
 
     // ---- orders ----
