@@ -76,6 +76,7 @@ async fn examine(app: &App) -> Shop {
             return Shop {
                 origin: app.endpoints().origin,
                 emulation: format!("{:?}", app.emulation),
+                pacing: pacing(&app.pace),
                 island: app.island.map(|i| i.to_string()),
                 region,
                 store,
@@ -122,6 +123,7 @@ async fn examine(app: &App) -> Shop {
     Shop {
         origin: app.endpoints().origin,
         emulation: format!("{:?}", app.emulation),
+        pacing: pacing(&app.pace),
         island: app.island.map(|i| i.to_string()),
         region,
         store,
@@ -153,6 +155,9 @@ struct Shop {
     /// this one at once. Knowing which one was tried is the first question a
     /// bug report about that has to answer.
     emulation: String,
+    /// The gap between requests, so a report of throttling says what rate
+    /// provoked it.
+    pacing: String,
     /// What a listing contains.
     island: Option<String>,
     /// Which shops get asked. A different thing from the island, and named
@@ -194,6 +199,7 @@ impl View for Doctor {
         writeln!(out, "{}", out.heading("The Warehouse"))?;
         indented(out, "origin", &self.shop.origin)?;
         indented(out, "presents as", &self.shop.emulation)?;
+        indented(out, "pacing", &self.shop.pacing)?;
         indented(
             out,
             "island",
@@ -258,5 +264,12 @@ fn describe_login(out: &Out, login: Option<&Login>) -> String {
             human_duration(Duration::from_secs(secs))
         ),
         None => who.to_string(),
+    }
+}
+
+fn pacing(pace: &net_kit::Pace) -> String {
+    match pace.interval().as_secs_f64() {
+        0.0 => "off".to_string(),
+        s => format!("{s}s between requests"),
     }
 }

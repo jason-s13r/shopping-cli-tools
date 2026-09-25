@@ -227,7 +227,8 @@ async fn sign_in(app: &App, email: &str, password: &str) -> AppResult<twlnz_api:
             eprintln!("twlnz: {m}");
         }
     };
-    Ok(twlnz_api::auth::login(&http, &app.endpoints(), email, password, trace).await?)
+    let pacer = net_kit::Pacer::new(app.pace.clone());
+    Ok(twlnz_api::auth::login(&http, &pacer, &app.endpoints(), email, password, trace).await?)
 }
 
 fn logout(app: &App) -> AppResult<()> {

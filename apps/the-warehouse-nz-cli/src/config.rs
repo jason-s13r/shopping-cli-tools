@@ -38,6 +38,8 @@ pub struct Config {
     pub auth: Auth,
     #[serde(skip_serializing_if = "is_default")]
     pub output: Output,
+    #[serde(skip_serializing_if = "is_default")]
+    pub network: Network,
 }
 
 fn is_default<T: Default + PartialEq>(value: &T) -> bool {
@@ -82,6 +84,14 @@ impl Default for Output {
     }
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Network {
+    /// Seconds between requests; `0` turns the spacing off.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub request_interval: Option<f64>,
+}
+
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ColorChoice {
@@ -106,13 +116,14 @@ impl Config {
 /// The list is explicit rather than derived so that `config list` has an order
 /// worth reading, and so a key that is no longer real fails loudly instead of
 /// writing a field nothing reads.
-pub const KEYS: [&str; 6] = [
+pub const KEYS: [&str; 7] = [
     "island",
     "store_id",
     "region",
     "auth.password_command",
     "auth.store_password",
     "output.color",
+    "network.request_interval",
 ];
 
 /// What a key means, for `config list`.
@@ -124,6 +135,9 @@ pub fn describe(key: &str) -> &'static str {
         "auth.password_command" => "a command that prints the password, for a password manager",
         "auth.store_password" => {
             "keep the password at login, so a lapsed session can sign itself in again"
+        }
+        "network.request_interval" => {
+            "seconds between requests to the site, 0 for none; retries on a 429 back off from it"
         }
         _ => "auto, always or never",
     }
@@ -146,6 +160,7 @@ impl Config {
                 }
                 .into(),
             ),
+            "network.request_interval" => self.network.request_interval.map(|s| s.to_string()),
             _ => return Err(unknown(key)),
         })
     }
@@ -185,6 +200,7 @@ impl Config {
                     _ => return Err(AppError::usage("color takes `auto`, `always` or `never`")),
                 }
             }
+            "network.request_interval" => self.network.request_interval = Some(seconds(value)?),
             _ => return Err(unknown(key)),
         }
         Ok(())
@@ -200,6 +216,7 @@ impl Config {
             "auth.password_command" => self.auth.password_command = None,
             "auth.store_password" => self.auth.store_password = Auth::default().store_password,
             "output.color" => self.output.color = ColorChoice::default(),
+            "network.request_interval" => self.network.request_interval = None,
             _ => return Err(unknown(key)),
         }
         Ok(())
@@ -211,6 +228,17 @@ fn boolean(value: &str) -> AppResult<bool> {
         "true" | "yes" | "on" | "1" => Ok(true),
         "false" | "no" | "off" | "0" => Ok(false),
         _ => Err(AppError::usage(format!("{value:?} is not true or false"))),
+    }
+}
+
+/// A request interval, in seconds. Shared with `TWLNZ_REQUEST_INTERVAL` so the
+/// file and the variable refuse the same things.
+pub fn seconds(value: &str) -> AppResult<f64> {
+    match value.trim().parse::<f64>() {
+        Ok(s) if s.is_finite() && s >= 0.0 => Ok(s),
+        _ => Err(AppError::usage(format!(
+            "{value:?} is not a number of seconds; use e.g. `1`, `0.5`, or `0` for no spacing"
+        ))),
     }
 }
 
@@ -268,6 +296,9 @@ mod tests {
         let mut config = Config::default();
         assert!(config.set("island", "east").is_err());
         assert!(config.set("output.color", "purple").is_err());
+        assert!(config.set("network.request_interval", "-1").is_err());
+        assert!(config.set("network.request_interval", "soon").is_err());
+        assert!(config.set("network.request_interval", "0.5").is_ok());
         assert!(config.set("island", "south").is_ok());
     }
 

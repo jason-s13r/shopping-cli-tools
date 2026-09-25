@@ -36,6 +36,9 @@ pub struct Overrides {
     /// accepts has changed once already, and a refused one 403s every request
     /// rather than degrading. Without this, that costs a release.
     pub emulation: Option<String>,
+    /// Seconds between requests, beating `network.request_interval`. Parsed
+    /// in `App`, where a bad value can be refused as usage.
+    pub request_interval: Option<String>,
 }
 
 impl Overrides {
@@ -66,6 +69,7 @@ impl Overrides {
             shell: var("SHELL"),
             origin: var("TWLNZ_ORIGIN"),
             emulation: var("TWLNZ_EMULATION"),
+            request_interval: var("TWLNZ_REQUEST_INTERVAL"),
         }
     }
 }

@@ -19,7 +19,8 @@ fn twlnz(home: &tempfile::TempDir) -> Command {
         .env("NO_COLOR", "1")
         // Pointed at a port nothing listens on, so a command that would reach
         // the site fails as a connection error rather than by contacting it.
-        .env("TWLNZ_ORIGIN", "http://127.0.0.1:9");
+        .env("TWLNZ_ORIGIN", "http://127.0.0.1:9")
+        .env("TWLNZ_REQUEST_INTERVAL", "0");
     cmd
 }
 

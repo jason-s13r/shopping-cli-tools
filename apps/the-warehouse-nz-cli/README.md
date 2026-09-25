@@ -195,8 +195,20 @@ then environment, then config file, then the default.
 | `TWLNZ_SECRET_BACKEND` | `keyring` or `file` |
 | `TWLNZ_ORIGIN` | the storefront, for pointing at a mock server |
 | `TWLNZ_EMULATION` | the browser to present as, by `wreq-util` name |
+| `TWLNZ_REQUEST_INTERVAL` | seconds between requests (default `1`, `0` for none) |
 | `TWLNZ_DEBUG` | narrate requests on stderr — cookie names only, no query strings |
 | `NO_COLOR` | honoured whatever the config says |
+
+### Request pacing
+
+Requests are spaced about a second apart. The site answering 429 or 503 is
+retried after a Fibonacci backoff (about 1, 1, 2, 3s), and a `Retry-After`
+longer than 30s is reported rather than waited out. `TWLNZ_DEBUG` shows each
+retry. Change the gap with `TWLNZ_REQUEST_INTERVAL` or:
+
+```bash
+twlnz config set network.request_interval 2
+```
 
 ### When every request 403s at once
 

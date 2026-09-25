@@ -88,7 +88,8 @@ pub fn state(paths: &net_kit::Paths) -> Option<(u64, usize)> {
 /// at once is a burst nobody's traffic looks like, and it is the shape that
 /// gets a client rate-limited whatever the total volume was. Four is roughly
 /// what a browser opens to one host, it costs four round trips instead of one,
-/// and this runs about once a week.
+/// and this runs about once a week. The client's pacing still spaces their
+/// starts, so the whole directory takes about sixteen request intervals.
 const IN_FLIGHT: usize = 4;
 
 /// All sixteen regions, a few at a time.

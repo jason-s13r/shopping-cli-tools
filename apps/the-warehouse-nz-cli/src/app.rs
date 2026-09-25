@@ -35,6 +35,8 @@ pub struct App {
     /// per client so an unusable `TWLNZ_EMULATION` is refused once, before any
     /// command has done anything.
     pub emulation: Profile,
+    /// How fast every request goes, and how a throttle is retried.
+    pub pace: net_kit::Pace,
 }
 
 impl App {
@@ -77,6 +79,21 @@ impl App {
             None => twlnz_api::EMULATION,
         };
 
+        let interval = match &env.request_interval {
+            Some(text) => Some(crate::config::seconds(text).map_err(|_| {
+                AppError::usage(format!(
+                    "{text:?} is not a number of seconds; TWLNZ_REQUEST_INTERVAL takes e.g. \
+                     `1`, `0.5`, or `0` for no spacing"
+                ))
+            })?),
+            None => config.network.request_interval,
+        };
+        let pace = match interval {
+            Some(0.0) => net_kit::Pace::off(),
+            Some(s) => net_kit::Pace::new(std::time::Duration::from_secs_f64(s)),
+            None => net_kit::Pace::new(twlnz_api::REQUEST_INTERVAL),
+        };
+
         Ok(App {
             config,
             config_file,
@@ -86,6 +103,7 @@ impl App {
             color,
             island,
             emulation,
+            pace,
         })
     }
 
@@ -148,6 +166,7 @@ impl App {
 
         Ok(Client::new(http, self.endpoints(), session)
             .with_reauth(reauth)
+            .with_pace(self.pace.clone())
             .with_island(self.island)
             .with_debug(self.env.debug))
     }
