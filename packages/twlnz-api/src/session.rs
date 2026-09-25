@@ -49,6 +49,16 @@ pub const GUEST_REFRESH_COOKIE: &str = "cc-nx-g_twl";
 /// Where a stored session is filed in the credential store.
 pub const ACCOUNT: &str = "session";
 
+/// Where Cloudflare's clearance is filed, apart from the session: it belongs to
+/// the browser that earned it, and outlives a sign-out.
+pub const CLEARANCE: &str = "clearance";
+
+/// Cloudflare's cookies: `cf_clearance`, which a browser earns by passing the
+/// challenge, and the `__cf_*` bot-management cookies beside it.
+pub fn is_clearance(name: &str) -> bool {
+    name == "cf_clearance" || name.starts_with("__cf")
+}
+
 /// Re-sign-in this long before the token expires, so one does not lapse midway
 /// through a command that makes several calls.
 const EXPIRY_MARGIN_SECS: u64 = 60;
@@ -127,6 +137,22 @@ impl Session {
                 self.cookies.insert(name, value);
             }
         }
+    }
+
+    /// Only the Cloudflare cookies. See [`is_clearance`].
+    pub fn clearance(&self) -> BTreeMap<String, String> {
+        self.cookies
+            .iter()
+            .filter(|(name, _)| is_clearance(name))
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect()
+    }
+
+    /// Take Cloudflare's cookies from a jar, and nothing else from it: a
+    /// browser's own `dwsid` and shopper tokens would overwrite this session's.
+    pub fn adopt_clearance(&mut self, jar: BTreeMap<String, String>) {
+        self.cookies
+            .extend(jar.into_iter().filter(|(name, _)| is_clearance(name)));
     }
 
     /// The `Cookie` header value, or `None` when there is nothing to send.
@@ -213,6 +239,22 @@ impl StoredSession {
     }
 }
 
+/// The stored Cloudflare clearance, or nothing. Unreadable is nothing too: the
+/// cost is one browser launch.
+pub fn load_clearance(secrets: &Secrets) -> Result<BTreeMap<String, String>> {
+    let Some(text) = secrets.get(CLEARANCE)? else {
+        return Ok(BTreeMap::new());
+    };
+    Ok(serde_json::from_str(&text).unwrap_or_default())
+}
+
+pub fn save_clearance(secrets: &Secrets, jar: &BTreeMap<String, String>) -> Result<()> {
+    let jar: BTreeMap<_, _> = jar.iter().filter(|(name, _)| is_clearance(name)).collect();
+    let text =
+        serde_json::to_string(&jar).map_err(|e| Error::decode("serialising the clearance", e))?;
+    Ok(secrets.set(CLEARANCE, &text)?)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -236,6 +278,21 @@ mod tests {
                 .map(|(k, v)| (k.to_string(), v.to_string()))
                 .collect(),
         )
+    }
+
+    #[test]
+    fn only_cloudflares_cookies_are_adopted_from_a_browser() {
+        let mut session = with(&[(SESSION_COOKIE, "mine")]);
+        session.adopt_clearance(BTreeMap::from([
+            ("cf_clearance".to_string(), "c".to_string()),
+            ("__cf_bm".to_string(), "b".to_string()),
+            (SESSION_COOKIE.to_string(), "the-browsers".to_string()),
+        ]));
+        assert_eq!(session.get(SESSION_COOKIE), Some("mine"));
+        assert_eq!(
+            session.clearance().keys().collect::<Vec<_>>(),
+            ["__cf_bm", "cf_clearance"]
+        );
     }
 
     #[test]

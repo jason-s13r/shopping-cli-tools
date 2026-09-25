@@ -6,7 +6,7 @@
 //! And most responses are HTML, so "the markup moved" is a real failure mode
 //! that has to be told apart from "the site said no".
 
-use net_kit::{AuthFault, Fault, HttpError};
+use net_kit::{wreq, AuthFault, Fault, HttpError};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -28,6 +28,11 @@ pub enum Error {
         None => String::new(),
     })]
     RateLimited { retry_after: Option<u64> },
+
+    /// Cloudflare answered with its JavaScript challenge, which no HTTP client
+    /// can pass -- only a browser can. See [`crate::Warmer`].
+    #[error("Cloudflare challenged this client, and only a browser can answer that")]
+    Challenged,
 
     #[error("the Warehouse session has expired")]
     SessionExpired,
@@ -105,6 +110,10 @@ impl Error {
         matches!(self, Error::RateLimited { .. })
     }
 
+    pub fn is_challenged(&self) -> bool {
+        matches!(self, Error::Challenged)
+    }
+
     /// Whether a client holding a password should try signing in again.
     pub fn is_lapsed(&self) -> bool {
         matches!(self, Error::SessionExpired | Error::NotSignedIn)
@@ -134,14 +143,49 @@ impl Fault for Error {
     }
 }
 
-/// Turn a transport failure into this crate's own, naming a rate limit rather
-/// than leaving it as an anonymous 429.
-///
-/// `retry_after` is read off the response by the caller: `net_kit` surfaces
-/// the status and the body, not the headers.
-pub(crate) fn from_http(e: HttpError, retry_after: Option<u64>) -> Error {
+/// What a refused response's headers said, read before its body is consumed:
+/// `net_kit` surfaces the status and the body, not the headers.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct Refusal {
+    retry_after: Option<u64>,
+    challenged: bool,
+}
+
+impl Refusal {
+    pub(crate) fn of(sent: &std::result::Result<wreq::Response, wreq::Error>) -> Refusal {
+        let Ok(response) = sent else {
+            return Refusal::default();
+        };
+        Refusal {
+            retry_after: (response.status() == wreq::StatusCode::TOO_MANY_REQUESTS)
+                .then(|| net_kit::pace::retry_after(response.headers()))
+                .flatten()
+                .map(|d| d.as_secs()),
+            challenged: is_challenge(response),
+        }
+    }
+}
+
+/// Cloudflare's JavaScript challenge. Told apart from the storefront's own 403s
+/// -- `Cross-Origin Request Blocked` among them -- by the header, not the body.
+pub(crate) fn is_challenge(response: &wreq::Response) -> bool {
+    response.status() == wreq::StatusCode::FORBIDDEN
+        && response
+            .headers()
+            .get("cf-mitigated")
+            .is_some_and(|v| v.as_bytes() == b"challenge")
+}
+
+/// Turn a transport failure into this crate's own, naming a rate limit or a
+/// challenge rather than leaving it as an anonymous status code.
+pub(crate) fn from_http(e: HttpError, refusal: Refusal) -> Error {
+    if refusal.challenged {
+        return Error::Challenged;
+    }
     match e.status() {
-        Some(429) => Error::RateLimited { retry_after },
+        Some(429) => Error::RateLimited {
+            retry_after: refusal.retry_after,
+        },
         _ => Error::Http(e),
     }
 }

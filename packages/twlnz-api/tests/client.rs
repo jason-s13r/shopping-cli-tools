@@ -168,6 +168,73 @@ async fn throttling_that_outlasts_the_retries_is_a_rate_limit() {
     assert!(err.is_rate_limited(), "{err:?}");
 }
 
+fn challenge() -> ResponseTemplate {
+    ResponseTemplate::new(403)
+        .insert_header("cf-mitigated", "challenge")
+        .set_body_string("<title>Just a moment...</title>")
+}
+
+#[tokio::test]
+async fn a_challenge_is_cleared_by_the_warmer_and_the_request_sent_again() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/search/updategrid"))
+        .and(wiremock::matchers::header_regex(
+            "cookie",
+            "cf_clearance=cleared",
+        ))
+        .respond_with(html("listing-window.html"))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/search/updategrid"))
+        .respond_with(challenge())
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let asked = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let counter = asked.clone();
+    let warmer: twlnz_api::Warmer = std::sync::Arc::new(move || {
+        counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Box::pin(async {
+            Ok(std::collections::BTreeMap::from([
+                ("cf_clearance".to_string(), "cleared".to_string()),
+                // A browser's own session must not replace this client's.
+                ("dwsid".to_string(), "the-browsers".to_string()),
+            ]))
+        })
+    });
+
+    let client = client(&server).with_warmer(Some(warmer));
+    let listing = client
+        .page(&Query::Keyword("blue".into()), 64, 32, None, &[])
+        .await
+        .unwrap();
+    assert_eq!(listing.products.len(), 3);
+    assert_eq!(asked.load(std::sync::atomic::Ordering::SeqCst), 1);
+    assert_eq!(client.session().get("dwsid"), None);
+}
+
+#[tokio::test]
+async fn a_challenge_with_no_browser_to_clear_it_is_named() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/search/updategrid"))
+        .respond_with(challenge())
+        .mount(&server)
+        .await;
+
+    let Err(err) = client(&server)
+        .page(&Query::Keyword("blue".into()), 64, 32, None, &[])
+        .await
+    else {
+        panic!("a challenge should not read as a listing");
+    };
+    assert!(err.is_challenged(), "{err:?}");
+}
+
 #[tokio::test]
 async fn a_keyword_that_redirects_into_a_category_is_reported_as_having_done_so() {
     // The site answers "lego" with the LEGO category page rather than with

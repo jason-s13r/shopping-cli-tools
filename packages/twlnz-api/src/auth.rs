@@ -16,10 +16,12 @@
 //! The failure is quiet and reads like a rejected password, which is why the
 //! POST overrides the client's redirect policy rather than relying on it.
 
+use std::collections::BTreeMap;
+
 use net_kit::wreq;
 
 use crate::endpoints::Endpoints;
-use crate::error::{Error, Result};
+use crate::error::{Error, Refusal, Result};
 use crate::session::{Session, REFRESH_COOKIE};
 
 /// Narration for the login flow, on stderr when asked for.
@@ -36,20 +38,37 @@ const CSRF_FIELD: &str = "csrf_token";
 /// Walk the login flow and hand back the session it produces.
 ///
 /// Paced but not retried: a throttled sign-in is reported, not re-submitted.
+///
+/// `clearance` is Cloudflare's cookies, which the login page is challenged
+/// without; see [`crate::Warmer`]. Nothing else is carried in -- an expired
+/// account cookie sent with the form reads as a wrong password.
 pub async fn login(
     http: &wreq::Client,
     pacer: &net_kit::Pacer,
     endpoints: &Endpoints,
+    clearance: BTreeMap<String, String>,
     email: &str,
     password: &str,
     trace: Trace<'_>,
 ) -> Result<Session> {
     let mut session = Session::default();
+    session.adopt_clearance(clearance);
 
     trace("fetching the login page");
     let url = endpoints.login_page();
+    let mut req = http.get(&url);
+    if let Some(cookies) = session.header() {
+        if let Ok(mut value) = wreq::header::HeaderValue::from_str(&cookies) {
+            value.set_sensitive(true);
+            req = req.header(wreq::header::COOKIE, value);
+        }
+    }
     pacer.wait().await;
-    let (headers, body) = net_kit::http::text("GET", &url, http.get(&url).send().await).await?;
+    let sent = req.send().await;
+    let refusal = Refusal::of(&sent);
+    let (headers, body) = net_kit::http::text("GET", &url, sent)
+        .await
+        .map_err(|e| crate::error::from_http(e, refusal))?;
     session.absorb(&headers);
 
     let token = csrf_token(&body).ok_or_else(|| Error::LoginRefused {
@@ -99,6 +118,9 @@ pub async fn login(
             source,
         })
     })?;
+    if crate::error::is_challenge(&response) {
+        return Err(Error::Challenged);
+    }
     let status = response.status().as_u16();
     let headers = response.headers().clone();
     let body = response.text().await.unwrap_or_default();

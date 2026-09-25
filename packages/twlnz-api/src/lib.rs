@@ -43,7 +43,7 @@ pub mod session;
 mod stores;
 mod wire;
 
-pub use client::{Client, Reauth, REQUEST_INTERVAL};
+pub use client::{Client, Reauth, Warmer, REQUEST_INTERVAL};
 pub use domain::{
     Availability, Cart, CartLine, Category, Island, Price, Product, ProductDetail, ShippingOption,
     Store, StoreStock, VariationAxis, VariationValue, Wishlist, WishlistItem,

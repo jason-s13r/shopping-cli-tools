@@ -1,13 +1,16 @@
 //! The storefront, and everything reached through it.
 
-use std::sync::Mutex;
+use std::collections::BTreeMap;
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::{Arc, Mutex};
 
 use net_kit::wreq;
 
 use crate::cart;
 use crate::domain::{Cart, Category, Island, ProductDetail, Store, StoreStock, Wishlist};
 use crate::endpoints::Endpoints;
-use crate::error::{Error, Result};
+use crate::error::{Error, Refusal, Result};
 use crate::extract;
 use crate::listing::{self, Facet, Listing, Query, PAGE_SIZE};
 use crate::product::{Action, Pdp};
@@ -39,6 +42,22 @@ pub struct Reauth {
     pub secrets: net_kit::Secrets,
 }
 
+/// Where Cloudflare clearance comes from, when a request is challenged.
+///
+/// Cloudflare guards the sign-in and account pages with a JavaScript challenge
+/// that no HTTP client passes. Measured 2026-09-25: a jar earned by a headless
+/// camoufox on `/login` was then served `/login` and `/account` through `wreq`
+/// on this crate's own Safari profile -- the browser's Firefox user agent did
+/// not have to match. So a browser clears the challenge and nothing else.
+///
+/// What comes back is a cookie jar; only its Cloudflare cookies are kept.
+/// Driving the browser is the caller's business.
+pub type Warmer = Arc<
+    dyn Fn() -> Pin<Box<dyn Future<Output = Result<BTreeMap<String, String>>> + Send>>
+        + Send
+        + Sync,
+>;
+
 pub struct Client {
     http: wreq::Client,
     /// Spaces every request this client sends, and retries throttles.
@@ -52,6 +71,10 @@ pub struct Client {
     /// choice: it changes what a listing *contains*, and the site keeps it on
     /// the shopper rather than on the request.
     island: Option<Island>,
+    warmer: Option<Warmer>,
+    /// Whether this client has asked the [`Warmer`] yet, and whether it
+    /// cleared. Asked once: concurrent challenges wait on the one browser.
+    warmed: tokio::sync::Mutex<Option<bool>>,
     debug: bool,
 }
 
@@ -64,12 +87,19 @@ impl Client {
             session: Mutex::new(session),
             reauth: None,
             island: None,
+            warmer: None,
+            warmed: tokio::sync::Mutex::new(None),
             debug: false,
         }
     }
 
     pub fn with_pace(mut self, pace: net_kit::Pace) -> Client {
         self.pacer = net_kit::Pacer::new(pace);
+        self
+    }
+
+    pub fn with_warmer(mut self, warmer: Option<Warmer>) -> Client {
+        self.warmer = warmer;
         self
     }
 
@@ -112,19 +142,53 @@ impl Client {
     ///
     /// `build` rather than a built request: a retry needs a fresh one, and
     /// rebuilding also picks up cookies an earlier response set.
+    ///
+    /// A Cloudflare challenge is cleared by the [`Warmer`] and the request sent
+    /// once more; a second challenge is handed back for the caller to name.
     async fn send(
         &self,
         what: &str,
         build: impl Fn() -> wreq::RequestBuilder,
-    ) -> std::result::Result<wreq::Response, wreq::Error> {
-        self.pacer
-            .send(build, |status, wait| {
-                self.trace(&format!(
-                    "{what} answered {status}; retrying in {:.1}s",
-                    wait.as_secs_f64()
-                ))
-            })
-            .await
+    ) -> Result<std::result::Result<wreq::Response, wreq::Error>> {
+        let on_retry = |status, wait: std::time::Duration| {
+            self.trace(&format!(
+                "{what} answered {status}; retrying in {:.1}s",
+                wait.as_secs_f64()
+            ))
+        };
+        let sent = self.pacer.send(&build, on_retry).await;
+        match &sent {
+            Ok(response) if crate::error::is_challenge(response) && self.clear().await? => {
+                Ok(self.pacer.send(&build, on_retry).await)
+            }
+            _ => Ok(sent),
+        }
+    }
+
+    /// Have the [`Warmer`] clear a Cloudflare challenge. `false` when there is
+    /// none, or it already tried and failed this run.
+    async fn clear(&self) -> Result<bool> {
+        let Some(warmer) = self.warmer.clone() else {
+            return Ok(false);
+        };
+        let mut warmed = self.warmed.lock().await;
+        if let Some(cleared) = *warmed {
+            return Ok(cleared);
+        }
+        self.trace("Cloudflare challenged the request; clearing it in a browser");
+        *warmed = Some(false);
+        let jar = warmer().await?;
+        let mut session = self.session.lock().expect("session lock");
+        session.adopt_clearance(jar);
+        let cleared = session.get("cf_clearance").is_some();
+        drop(session);
+        *warmed = Some(cleared);
+        self.trace(if cleared {
+            "cleared; sending it again"
+        } else {
+            "the browser came back without a cf_clearance"
+        });
+        Ok(cleared)
     }
 
     /// Cookies from the session, marked so they never reach a debug print.
@@ -157,14 +221,14 @@ impl Client {
                 self.with_cookies(self.http.get(&target))
                     .header(wreq::header::REFERER, format!("{}/", self.endpoints.origin))
             })
-            .await;
-        let hint = retry_after(&sent);
+            .await?;
+        let refusal = Refusal::of(&sent);
         // `landed_text` rather than `text`: `wreq` follows the redirect, and
         // where it ended up is the only evidence that a keyword search was
         // answered with a category page or an account page with a sign-in wall.
         let (landed, headers, body) = net_kit::http::landed_text("GET", &target, sent)
             .await
-            .map_err(|e| crate::error::from_http(e, hint))?;
+            .map_err(|e| crate::error::from_http(e, refusal))?;
         self.session.lock().expect("session lock").absorb(&headers);
         Ok((landed, body))
     }
@@ -205,11 +269,11 @@ impl Client {
                 };
                 self.with_cookies(req)
             })
-            .await;
-        let hint = retry_after(&sent);
+            .await?;
+        let refusal = Refusal::of(&sent);
         let (headers, body) = net_kit::http::text("GET", &absolute, sent)
             .await
-            .map_err(|e| crate::error::from_http(e, hint))?;
+            .map_err(|e| crate::error::from_http(e, refusal))?;
         self.session.lock().expect("session lock").absorb(&headers);
         self.trace(&format!("read {what}"));
         Ok(body)
@@ -289,11 +353,11 @@ impl Client {
                     .header("sec-fetch-site", "same-origin");
                 self.with_cookies(req).form(form)
             })
-            .await;
-        let hint = retry_after(&sent);
+            .await?;
+        let refusal = Refusal::of(&sent);
         let (headers, body) = net_kit::http::text("POST", &absolute, sent)
             .await
-            .map_err(|e| crate::error::from_http(e, hint))?;
+            .map_err(|e| crate::error::from_http(e, refusal))?;
         self.session.lock().expect("session lock").absorb(&headers);
         self.trace(&format!("posted {action}"));
         cart::checked(action, &body)
@@ -309,18 +373,37 @@ impl Client {
             .password()
             .await?
             .ok_or(Error::NotSignedIn)?;
-        let trace: crate::auth::Trace<'_> = &|m| self.trace(m);
-        let session = crate::auth::login(
-            &self.http,
-            &self.pacer,
-            &self.endpoints,
-            &reauth.email,
-            &password,
-            trace,
-        )
-        .await?;
+        let session = self.sign_in(&reauth.email, &password).await?;
         crate::session::StoredSession::of(&session, Some(reauth.email.clone()))
             .save(&reauth.secrets)?;
+        Ok(session)
+    }
+
+    /// Run the login form and adopt the session it produces. Not stored.
+    ///
+    /// Starts from this client's Cloudflare clearance and nothing else, and
+    /// clears a challenge on the way when there is a [`Warmer`].
+    pub async fn sign_in(&self, email: &str, password: &str) -> Result<Session> {
+        let trace: crate::auth::Trace<'_> = &|m| self.trace(m);
+        let attempt = || {
+            let clearance = self.session().clearance();
+            async move {
+                crate::auth::login(
+                    &self.http,
+                    &self.pacer,
+                    &self.endpoints,
+                    clearance,
+                    email,
+                    password,
+                    trace,
+                )
+                .await
+            }
+        };
+        let session = match attempt().await {
+            Err(Error::Challenged) if self.clear().await? => attempt().await?,
+            other => other?,
+        };
         *self.session.lock().expect("session lock") = session.clone();
         Ok(session)
     }
@@ -834,16 +917,6 @@ enum Xhr {
     Fetch,
     /// `XMLHttpRequest`: the search typeahead, which predates the rest.
     Legacy,
-}
-
-/// The seconds a throttled response asked for, read before the response is
-/// consumed.
-fn retry_after(sent: &std::result::Result<wreq::Response, wreq::Error>) -> Option<u64> {
-    let response = sent.as_ref().ok()?;
-    if response.status() != wreq::StatusCode::TOO_MANY_REQUESTS {
-        return None;
-    }
-    net_kit::pace::retry_after(response.headers()).map(|d| d.as_secs())
 }
 
 /// The product an action URL is about, from whichever parameter names it.
