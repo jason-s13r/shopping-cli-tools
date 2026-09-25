@@ -23,6 +23,7 @@ pub mod cookies;
 pub mod error;
 pub mod http;
 pub mod jwt;
+pub mod pace;
 pub mod password;
 pub mod paths;
 pub mod run;
@@ -31,6 +32,7 @@ pub mod secrets;
 pub use cookies::Jar;
 pub use error::{AuthFault, Error, Fault, HttpError, Result};
 pub use http::ClientSpec;
+pub use pace::{Pace, Pacer};
 pub use paths::{restrict, Paths};
 pub use secrets::{Backend, Secrets};
 

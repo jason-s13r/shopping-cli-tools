@@ -7,14 +7,16 @@ license = "MIT"
 publish = false
 
 [dependencies]
+backon = { version = "1", default-features = false, features = ["tokio-sleep"] }
 base64 = "0.22"
 directories = "6"
+governor = { version = "0.10", default-features = false, features = ["std", "jitter", "quanta"] }
 keyring = "4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 shell-words = "1"
 thiserror = "2"
-tokio = { version = "1", features = ["process", "fs"] }
+tokio = { version = "1", features = ["process", "fs", "time"] }
 toml = "0.9"
 wreq = { version = "0.16", features = ["json", "cookies", "form", "gzip", "brotli"] }
 wreq-util = "0.2"
