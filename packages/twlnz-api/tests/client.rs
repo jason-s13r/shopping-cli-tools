@@ -48,6 +48,7 @@ fn client(server: &MockServer) -> Client {
         Endpoints::default().with_origin(server.uri()),
         Session::default(),
     )
+    .with_pace(net_kit::Pace::off())
 }
 
 fn html(name: &str) -> ResponseTemplate {
@@ -87,6 +88,84 @@ async fn a_listing_window_parses_into_products() {
     assert!(!first.name.is_empty());
     assert!(first.price.value.is_some(), "a displayed price parses back");
     assert!(first.url.is_some());
+}
+
+#[tokio::test]
+async fn a_throttled_request_is_retried_after_a_pause() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/search/updategrid"))
+        .respond_with(ResponseTemplate::new(429))
+        .up_to_n_times(1)
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/search/updategrid"))
+        .respond_with(html("listing-window.html"))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let listing = client(&server)
+        .with_pace(net_kit::Pace::new(std::time::Duration::from_millis(10)))
+        .page(&Query::Keyword("blue".into()), 64, 32, None, &[])
+        .await
+        .unwrap();
+    assert_eq!(listing.products.len(), 3);
+}
+
+#[tokio::test]
+async fn a_wait_longer_than_the_client_allows_is_reported_not_sat_out() {
+    // Seven seconds is past the one-second ceiling, so the first 429 ends it
+    // and the site's number is passed on for the person to act on.
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/search/updategrid"))
+        .respond_with(ResponseTemplate::new(429).insert_header("retry-after", "7"))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let Err(err) = client(&server)
+        .with_pace(
+            net_kit::Pace::new(std::time::Duration::from_millis(10))
+                .with_max_backoff(std::time::Duration::from_secs(1)),
+        )
+        .page(&Query::Keyword("blue".into()), 64, 32, None, &[])
+        .await
+    else {
+        panic!("a throttle should not read as a listing");
+    };
+    assert!(
+        matches!(
+            err,
+            twlnz_api::Error::RateLimited {
+                retry_after: Some(7)
+            }
+        ),
+        "{err:?}"
+    );
+}
+
+#[tokio::test]
+async fn throttling_that_outlasts_the_retries_is_a_rate_limit() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/search/updategrid"))
+        .respond_with(ResponseTemplate::new(429))
+        .expect(3)
+        .mount(&server)
+        .await;
+
+    let Err(err) = client(&server)
+        .with_pace(net_kit::Pace::new(std::time::Duration::from_millis(10)).with_retries(2))
+        .page(&Query::Keyword("blue".into()), 64, 32, None, &[])
+        .await
+    else {
+        panic!("a throttle should not read as a listing");
+    };
+    assert!(err.is_rate_limited(), "{err:?}");
 }
 
 #[tokio::test]
@@ -452,10 +531,9 @@ async fn a_region_the_modal_does_not_offer_names_the_ones_it_does() {
         .mount(&server)
         .await;
 
-    let err = client(&server)
-        .stock(&stock_pdp(), Some("NZ-XXX"))
-        .await
-        .unwrap_err();
+    let Err(err) = client(&server).stock(&stock_pdp(), Some("NZ-XXX")).await else {
+        panic!("a throttle should not read as a listing");
+    };
     assert!(err.to_string().contains("NZ-AUK"), "{err}");
 }
 
@@ -644,6 +722,7 @@ fn signed_in(server: &MockServer) -> Client {
         Endpoints::default().with_origin(server.uri()),
         Session::from_cookies(cookies),
     )
+    .with_pace(net_kit::Pace::off())
 }
 
 #[tokio::test]

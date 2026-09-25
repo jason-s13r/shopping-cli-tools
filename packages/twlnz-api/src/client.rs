@@ -22,6 +22,10 @@ use crate::wire;
 /// than a refused write.
 const TOKEN_MAX_AGE_SECS: u64 = 300;
 
+/// The default gap between requests. Unmeasured: a guess at a rate a person
+/// clicking through the site could plausibly produce.
+pub const REQUEST_INTERVAL: std::time::Duration = std::time::Duration::from_secs(1);
+
 /// What a client needs to sign itself in again when its session lapses.
 ///
 /// Unlike Woolworths, this is a genuine renewal rather than a whole flow
@@ -37,6 +41,8 @@ pub struct Reauth {
 
 pub struct Client {
     http: wreq::Client,
+    /// Spaces every request this client sends, and retries throttles.
+    pacer: net_kit::Pacer,
     endpoints: Endpoints,
     /// Replaced in place by [`Client::renew`], so one command's later calls use
     /// the session its earlier ones bought.
@@ -53,12 +59,18 @@ impl Client {
     pub fn new(http: wreq::Client, endpoints: Endpoints, session: Session) -> Client {
         Client {
             http,
+            pacer: net_kit::Pacer::new(net_kit::Pace::new(REQUEST_INTERVAL)),
             endpoints,
             session: Mutex::new(session),
             reauth: None,
             island: None,
             debug: false,
         }
+    }
+
+    pub fn with_pace(mut self, pace: net_kit::Pace) -> Client {
+        self.pacer = net_kit::Pacer::new(pace);
+        self
     }
 
     pub fn with_reauth(mut self, reauth: Option<Reauth>) -> Client {
@@ -96,6 +108,36 @@ impl Client {
         }
     }
 
+    /// Every request goes out through here, so the pacing covers them all.
+    ///
+    /// `build` rather than a built request: a retry needs a fresh one, and
+    /// rebuilding also picks up cookies an earlier response set.
+    async fn send(
+        &self,
+        what: &str,
+        build: impl Fn() -> wreq::RequestBuilder,
+    ) -> std::result::Result<wreq::Response, wreq::Error> {
+        self.pacer
+            .send(build, |status, wait| {
+                self.trace(&format!(
+                    "{what} answered {status}; retrying in {:.1}s",
+                    wait.as_secs_f64()
+                ))
+            })
+            .await
+    }
+
+    /// Cookies from the session, marked so they never reach a debug print.
+    fn with_cookies(&self, mut req: wreq::RequestBuilder) -> wreq::RequestBuilder {
+        if let Some(cookies) = self.session().header() {
+            if let Ok(mut value) = wreq::header::HeaderValue::from_str(&cookies) {
+                value.set_sensitive(true);
+                req = req.header(wreq::header::COOKIE, value);
+            }
+        }
+        req
+    }
+
     /// One GET, with the session's cookies, keeping whatever it sets.
     ///
     /// Returns the final URL as well as the body, because a keyword search can
@@ -108,24 +150,21 @@ impl Client {
         } else {
             format!("{url}?{}", crate::endpoints::query_string(params))
         };
-        let mut req = self.http.get(&target);
-        if let Some(cookies) = self.session().header() {
-            if let Ok(mut value) = wreq::header::HeaderValue::from_str(&cookies) {
-                value.set_sensitive(true);
-                req = req.header(wreq::header::COOKIE, value);
-            }
-        }
-        // The storefront serves a different page to a request that did not come
-        // from itself.
-        req = req.header(wreq::header::REFERER, format!("{}/", self.endpoints.origin));
-
-        let sent = req.send().await;
+        let sent = self
+            .send("page", || {
+                // The storefront serves a different page to a request that did
+                // not come from itself.
+                self.with_cookies(self.http.get(&target))
+                    .header(wreq::header::REFERER, format!("{}/", self.endpoints.origin))
+            })
+            .await;
+        let hint = retry_after(&sent);
         // `landed_text` rather than `text`: `wreq` follows the redirect, and
         // where it ended up is the only evidence that a keyword search was
         // answered with a category page or an account page with a sign-in wall.
         let (landed, headers, body) = net_kit::http::landed_text("GET", &target, sent)
             .await
-            .map_err(crate::error::from_http)?;
+            .map_err(|e| crate::error::from_http(e, hint))?;
         self.session.lock().expect("session lock").absorb(&headers);
         Ok((landed, body))
     }
@@ -146,33 +185,31 @@ impl Client {
             None => format!("{}/", self.endpoints.origin),
         };
 
-        let mut req = self
-            .http
-            .get(&absolute)
-            .header(wreq::header::REFERER, referer)
-            .header("sec-fetch-dest", "empty")
-            .header("sec-fetch-site", "same-origin");
-        req = match shape {
-            Xhr::Fetch => req
-                .header(wreq::header::ACCEPT, "application/json")
-                .header("x-requested-with", "fetch")
-                .header("sec-fetch-mode", "same-origin"),
-            Xhr::Legacy => req
-                .header(wreq::header::ACCEPT, "text/html,application/json;q=0.1")
-                .header("x-requested-with", "XMLHttpRequest")
-                .header("sec-fetch-mode", "cors"),
-        };
-        if let Some(cookies) = self.session().header() {
-            if let Ok(mut value) = wreq::header::HeaderValue::from_str(&cookies) {
-                value.set_sensitive(true);
-                req = req.header(wreq::header::COOKIE, value);
-            }
-        }
-
-        let sent = req.send().await;
+        let sent = self
+            .send(what, || {
+                let req = self
+                    .http
+                    .get(&absolute)
+                    .header(wreq::header::REFERER, &referer)
+                    .header("sec-fetch-dest", "empty")
+                    .header("sec-fetch-site", "same-origin");
+                let req = match shape {
+                    Xhr::Fetch => req
+                        .header(wreq::header::ACCEPT, "application/json")
+                        .header("x-requested-with", "fetch")
+                        .header("sec-fetch-mode", "same-origin"),
+                    Xhr::Legacy => req
+                        .header(wreq::header::ACCEPT, "text/html,application/json;q=0.1")
+                        .header("x-requested-with", "XMLHttpRequest")
+                        .header("sec-fetch-mode", "cors"),
+                };
+                self.with_cookies(req)
+            })
+            .await;
+        let hint = retry_after(&sent);
         let (headers, body) = net_kit::http::text("GET", &absolute, sent)
             .await
-            .map_err(crate::error::from_http)?;
+            .map_err(|e| crate::error::from_http(e, hint))?;
         self.session.lock().expect("session lock").absorb(&headers);
         self.trace(&format!("read {what}"));
         Ok(body)
@@ -237,25 +274,26 @@ impl Client {
             Some(pid) => self.endpoints.product_page("p", &pid),
             None => self.endpoints.cart_page(),
         });
-        let mut req = self
-            .http
-            .post(&absolute)
-            .header(wreq::header::ACCEPT, "application/json")
-            .header("x-requested-with", "fetch")
-            .header(wreq::header::REFERER, referer)
-            .header("sec-fetch-dest", "empty")
-            .header("sec-fetch-mode", "same-origin")
-            .header("sec-fetch-site", "same-origin");
-        if let Some(cookies) = self.session().header() {
-            if let Ok(mut value) = wreq::header::HeaderValue::from_str(&cookies) {
-                value.set_sensitive(true);
-                req = req.header(wreq::header::COOKIE, value);
-            }
-        }
-        let sent = req.form(form).send().await;
+        // Retried like the rest: a throttled write was never processed, so
+        // sending it again cannot apply it twice.
+        let sent = self
+            .send(action, || {
+                let req = self
+                    .http
+                    .post(&absolute)
+                    .header(wreq::header::ACCEPT, "application/json")
+                    .header("x-requested-with", "fetch")
+                    .header(wreq::header::REFERER, &referer)
+                    .header("sec-fetch-dest", "empty")
+                    .header("sec-fetch-mode", "same-origin")
+                    .header("sec-fetch-site", "same-origin");
+                self.with_cookies(req).form(form)
+            })
+            .await;
+        let hint = retry_after(&sent);
         let (headers, body) = net_kit::http::text("POST", &absolute, sent)
             .await
-            .map_err(crate::error::from_http)?;
+            .map_err(|e| crate::error::from_http(e, hint))?;
         self.session.lock().expect("session lock").absorb(&headers);
         self.trace(&format!("posted {action}"));
         cart::checked(action, &body)
@@ -272,9 +310,15 @@ impl Client {
             .await?
             .ok_or(Error::NotSignedIn)?;
         let trace: crate::auth::Trace<'_> = &|m| self.trace(m);
-        let session =
-            crate::auth::login(&self.http, &self.endpoints, &reauth.email, &password, trace)
-                .await?;
+        let session = crate::auth::login(
+            &self.http,
+            &self.pacer,
+            &self.endpoints,
+            &reauth.email,
+            &password,
+            trace,
+        )
+        .await?;
         crate::session::StoredSession::of(&session, Some(reauth.email.clone()))
             .save(&reauth.secrets)?;
         *self.session.lock().expect("session lock") = session.clone();
@@ -790,6 +834,16 @@ enum Xhr {
     Fetch,
     /// `XMLHttpRequest`: the search typeahead, which predates the rest.
     Legacy,
+}
+
+/// The seconds a throttled response asked for, read before the response is
+/// consumed.
+fn retry_after(sent: &std::result::Result<wreq::Response, wreq::Error>) -> Option<u64> {
+    let response = sent.as_ref().ok()?;
+    if response.status() != wreq::StatusCode::TOO_MANY_REQUESTS {
+        return None;
+    }
+    net_kit::pace::retry_after(response.headers()).map(|d| d.as_secs())
 }
 
 /// The product an action URL is about, from whichever parameter names it.

@@ -34,8 +34,11 @@ pub fn no_trace(_: &str) {}
 const CSRF_FIELD: &str = "csrf_token";
 
 /// Walk the login flow and hand back the session it produces.
+///
+/// Paced but not retried: a throttled sign-in is reported, not re-submitted.
 pub async fn login(
     http: &wreq::Client,
+    pacer: &net_kit::Pacer,
     endpoints: &Endpoints,
     email: &str,
     password: &str,
@@ -45,6 +48,7 @@ pub async fn login(
 
     trace("fetching the login page");
     let url = endpoints.login_page();
+    pacer.wait().await;
     let (headers, body) = net_kit::http::text("GET", &url, http.get(&url).send().await).await?;
     session.absorb(&headers);
 
@@ -85,6 +89,7 @@ pub async fn login(
     }
 
     trace("posting the credentials");
+    pacer.wait().await;
     // Handled without `net_kit::http::text`, which treats any non-2xx as a
     // failure -- and here the 302 *is* the success.
     let response = req.form(&form).send().await.map_err(|source| {

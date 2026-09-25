@@ -137,12 +137,11 @@ impl Fault for Error {
 /// Turn a transport failure into this crate's own, naming a rate limit rather
 /// than leaving it as an anonymous 429.
 ///
-/// `Retry-After` is not read: `net_kit` surfaces the status and the body, not
-/// the headers, and inventing a number would be worse than admitting there is
-/// not one.
-pub(crate) fn from_http(e: HttpError) -> Error {
+/// `retry_after` is read off the response by the caller: `net_kit` surfaces
+/// the status and the body, not the headers.
+pub(crate) fn from_http(e: HttpError, retry_after: Option<u64>) -> Error {
     match e.status() {
-        Some(429) => Error::RateLimited { retry_after: None },
+        Some(429) => Error::RateLimited { retry_after },
         _ => Error::Http(e),
     }
 }
