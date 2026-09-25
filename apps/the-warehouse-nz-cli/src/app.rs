@@ -37,6 +37,8 @@ pub struct App {
     pub emulation: Profile,
     /// How fast every request goes, and how a throttle is retried.
     pub pace: net_kit::Pace,
+    /// Whether the challenge browser shows its window.
+    pub headful: bool,
 }
 
 impl App {
@@ -94,6 +96,8 @@ impl App {
             None => net_kit::Pace::new(twlnz_api::REQUEST_INTERVAL),
         };
 
+        let headful = cli.headful || env.headful;
+
         Ok(App {
             config,
             config_file,
@@ -104,6 +108,7 @@ impl App {
             island,
             emulation,
             pace,
+            headful,
         })
     }
 
@@ -147,10 +152,13 @@ impl App {
         let http = self.http()?;
         let secrets = self.secrets();
         let stored = StoredSession::load(&secrets)?;
-        let session = stored
+        let mut session = stored
             .as_ref()
             .map(StoredSession::session)
             .unwrap_or_default();
+        // Newer than any the stored session holds: it is refiled every time a
+        // browser clears a challenge.
+        session.adopt_clearance(twlnz_api::session::load_clearance(&secrets)?);
 
         // Only offered when there is an email to sign in *as*. The password is
         // named, not read: a command that never renews should not pay a
@@ -166,9 +174,59 @@ impl App {
 
         Ok(Client::new(http, self.endpoints(), session)
             .with_reauth(reauth)
+            .with_warmer(Some(self.warmer()))
             .with_pace(self.pace.clone())
             .with_island(self.island)
             .with_debug(self.env.debug))
+    }
+
+    /// A client holding nothing but Cloudflare's clearance, for signing in:
+    /// an expired account cookie sent with the form reads as a wrong password.
+    pub fn fresh_client(&self) -> AppResult<Client> {
+        let mut session = twlnz_api::Session::default();
+        session.adopt_clearance(twlnz_api::session::load_clearance(&self.secrets())?);
+        Ok(Client::new(self.http()?, self.endpoints(), session)
+            .with_pace(self.pace.clone())
+            .with_warmer(Some(self.warmer()))
+            .with_debug(self.env.debug))
+    }
+
+    /// How a challenged request is cleared: a browser. See [`crate::browser`].
+    ///
+    /// Attached whether or not one is installed, so a machine without one is
+    /// told what to install when it is needed. What the browser earns is filed
+    /// for the next run, which then starts no browser at all.
+    pub fn warmer(&self) -> twlnz_api::Warmer {
+        let python = self.env.browser_python.clone();
+        let state_dir = self.paths.state_dir.clone();
+        let origin = self.endpoints().origin;
+        let headless = !self.headful;
+        let debug = self.env.debug;
+        let secrets = std::sync::Arc::new(self.secrets());
+        std::sync::Arc::new(move || {
+            let (python, state_dir, origin, secrets) = (
+                python.clone(),
+                state_dir.clone(),
+                origin.clone(),
+                secrets.clone(),
+            );
+            Box::pin(async move {
+                let warmth =
+                    crate::browser::warm(python.as_deref(), &state_dir, &origin, headless, debug)
+                        .await
+                        // `Shape` carries the sentence intact, and for a
+                        // missing browser that sentence is the fix.
+                        .map_err(|e| twlnz_api::Error::Shape(e.to_string()))?;
+                // Best effort, like a cache: a failed write costs the next run
+                // a browser, not this one its result.
+                if let Err(e) = twlnz_api::session::save_clearance(&secrets, &warmth.cookies) {
+                    if debug {
+                        eprintln!("twlnz: the clearance could not be filed: {e}");
+                    }
+                }
+                Ok(warmth.cookies)
+            }) as std::pin::Pin<Box<dyn std::future::Future<Output = _> + Send>>
+        })
     }
 
     /// Write the config back, having changed it.

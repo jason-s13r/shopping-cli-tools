@@ -39,6 +39,11 @@ pub struct Overrides {
     /// Seconds between requests, beating `network.request_interval`. Parsed
     /// in `App`, where a bad value can be refused as usage.
     pub request_interval: Option<String>,
+    /// The Python to run the challenge browser with, when the `camoufox`
+    /// launcher's own shebang is not the right one.
+    pub browser_python: Option<String>,
+    /// Show the challenge browser's window. `--headful` is the usual way.
+    pub headful: bool,
 }
 
 impl Overrides {
@@ -70,6 +75,8 @@ impl Overrides {
             origin: var("TWLNZ_ORIGIN"),
             emulation: var("TWLNZ_EMULATION"),
             request_interval: var("TWLNZ_REQUEST_INTERVAL"),
+            browser_python: var("TWLNZ_BROWSER_PYTHON"),
+            headful: flag("TWLNZ_HEADFUL"),
         }
     }
 }

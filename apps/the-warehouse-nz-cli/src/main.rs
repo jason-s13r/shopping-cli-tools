@@ -6,6 +6,7 @@
 //! flags against config, and turning a failure into an exit code.
 
 mod app;
+mod browser;
 mod build;
 mod cli;
 mod commands;

@@ -77,6 +77,7 @@ async fn examine(app: &App) -> Shop {
                 origin: app.endpoints().origin,
                 emulation: format!("{:?}", app.emulation),
                 pacing: pacing(&app.pace),
+                browser: crate::browser::available(app.env.browser_python.as_deref()),
                 island: app.island.map(|i| i.to_string()),
                 region,
                 store,
@@ -124,6 +125,7 @@ async fn examine(app: &App) -> Shop {
         origin: app.endpoints().origin,
         emulation: format!("{:?}", app.emulation),
         pacing: pacing(&app.pace),
+        browser: crate::browser::available(app.env.browser_python.as_deref()),
         island: app.island.map(|i| i.to_string()),
         region,
         store,
@@ -158,6 +160,9 @@ struct Shop {
     /// The gap between requests, so a report of throttling says what rate
     /// provoked it.
     pacing: String,
+    /// Whether there is a browser to pass Cloudflare's challenge with, which
+    /// signing in needs.
+    browser: bool,
     /// What a listing contains.
     island: Option<String>,
     /// Which shops get asked. A different thing from the island, and named
@@ -200,6 +205,14 @@ impl View for Doctor {
         indented(out, "origin", &self.shop.origin)?;
         indented(out, "presents as", &self.shop.emulation)?;
         indented(out, "pacing", &self.shop.pacing)?;
+        indented(
+            out,
+            "browser",
+            &match self.shop.browser {
+                true => format!("{}, camoufox", out.good("ok")),
+                false => format!("{}, {}", out.bad("none"), crate::browser::MISSING_BROWSER),
+            },
+        )?;
         indented(
             out,
             "island",

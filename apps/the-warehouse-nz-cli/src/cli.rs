@@ -17,6 +17,12 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub json: bool,
 
+    /// Show the window when a browser has to pass Cloudflare's challenge.
+    ///
+    /// Headless usually passes; a window is the thing to try when it does not.
+    #[arg(long, global = true)]
+    pub headful: bool,
+
     #[command(subcommand)]
     pub command: Command,
 }
@@ -34,6 +40,7 @@ pub fn advice(error: &crate::error::AppError) -> Option<&'static str> {
         // Not "try again": the point of the message is that trying again
         // sooner is the wrong move.
         twlnz_api::Error::RateLimited { .. } => "wait a few minutes before running this again",
+        twlnz_api::Error::Challenged => "run it again with --headful",
         _ => return None,
     })
 }

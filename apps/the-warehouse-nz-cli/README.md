@@ -196,8 +196,24 @@ then environment, then config file, then the default.
 | `TWLNZ_ORIGIN` | the storefront, for pointing at a mock server |
 | `TWLNZ_EMULATION` | the browser to present as, by `wreq-util` name |
 | `TWLNZ_REQUEST_INTERVAL` | seconds between requests (default `1`, `0` for none) |
+| `TWLNZ_BROWSER_PYTHON` | the Python camoufox is run with, if not the launcher's own |
+| `TWLNZ_HEADFUL` | show the challenge browser's window, like `--headful` |
 | `TWLNZ_DEBUG` | narrate requests on stderr — cookie names only, no query strings |
 | `NO_COLOR` | honoured whatever the config says |
+
+### Signing in needs a browser
+
+Cloudflare puts a JavaScript challenge in front of the sign-in and account
+pages, and no HTTP client can pass it. When a request is challenged, `twlnz`
+runs [camoufox](https://camoufox.com) headless on the login page. That takes
+about five seconds. It keeps only Cloudflare's cookies and stores them, so
+later runs don't start a browser. Search and browse work without it.
+
+```bash
+uv tool install "camoufox[geoip]" && camoufox fetch
+twlnz doctor            # the `browser` line says whether it was found
+twlnz auth login --headful   # if the headless run does not clear
+```
 
 ### Request pacing
 
