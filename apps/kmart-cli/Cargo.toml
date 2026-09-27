@@ -1,6 +1,6 @@
 [package]
 name = "kmart-cli"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 description = "An unofficial command line tool for Kmart Australia and New Zealand"
 license = "MIT"
@@ -14,10 +14,10 @@ path = "src/main.rs"
 # `build-kit` is also a build dependency below. The version belongs on exactly
 # one of the two: dispat rewrites the first range it finds, so a second one
 # carrying a version is left pinned to a release that no longer exists.
-build-kit = { path = "../../packages/build-kit", version = "^0.3.0" }
+build-kit = { path = "../../packages/build-kit", version = "^0.3.1" }
 cli-kit = { path = "../../packages/cli-kit", version = "^0.3.0" }
-kmart-api = { path = "../../packages/kmart-api", version = "^0.2.1" }
-net-kit = { path = "../../packages/net-kit", version = "^0.1.2" }
+kmart-api = { path = "../../packages/kmart-api", version = "^0.2.2" }
+net-kit = { path = "../../packages/net-kit", version = "^0.2.0" }
 
 clap = { version = "4", features = ["derive"] }
 clap_complete = "4"

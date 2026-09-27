@@ -1,5 +1,12 @@
 # Changelog
 
+## wwnz-api/v0.1.3 (2026-09-27)
+
+### Dependencies
+
+- net-kit: 0.1.2 -> 0.2.0
+
+
 ## wwnz-api/v0.1.2 (2026-09-19)
 
 ### Fixes

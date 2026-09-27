@@ -419,7 +419,7 @@ dependencies = [
 
 [[package]]
 name = "build-kit"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "flate2",
  "net-kit",
@@ -1712,7 +1712,7 @@ dependencies = [
 
 [[package]]
 name = "net-kit"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "backon",
  "base64",
@@ -2672,7 +2672,7 @@ checksum = "8f50febec83f5ee1df3015341d8bd429f2d1cc62bcba7ea2076759d315084683"
 
 [[package]]
 name = "the-warehouse-nz-cli"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "assert_cmd",
  "build-kit",
@@ -2947,7 +2947,7 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "twlnz-api"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "ego-tree",
  "net-kit",

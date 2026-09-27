@@ -1,6 +1,6 @@
 [package]
 name = "mitre10-nz-cli"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "An unofficial command line tool for Mitre 10 New Zealand"
 license = "MIT"
@@ -14,10 +14,10 @@ path = "src/main.rs"
 # `build-kit` is also a build dependency below. The version belongs on exactly
 # one of the two: dispat rewrites the first range it finds, so a second one
 # carrying a version is left pinned to a release that no longer exists.
-build-kit = { path = "../../packages/build-kit", version = "^0.3.0" }
+build-kit = { path = "../../packages/build-kit", version = "^0.3.1" }
 cli-kit = { path = "../../packages/cli-kit", version = "^0.3.0" }
-net-kit = { path = "../../packages/net-kit", version = "^0.1.1" }
-mitre10-api = { path = "../../packages/mitre10-api", version = "^0.1.0" }
+net-kit = { path = "../../packages/net-kit", version = "^0.2.0" }
+mitre10-api = { path = "../../packages/mitre10-api", version = "^0.1.1" }
 
 clap = { version = "4", features = ["derive"] }
 clap_complete = "4"

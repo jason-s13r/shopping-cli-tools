@@ -1,5 +1,25 @@
 # Changelog
 
+## twlnz-api/v0.3.0 (2026-09-27)
+
+### Features
+
+- clear Cloudflare challenges through a Warmer
+  /login and /account now answer a JavaScript challenge no HTTP client
+  passes. A challenged request asks the Warmer once per client, adopts only
+  the Cloudflare cookies it returns, and is sent again. A browser-earned
+  cf_clearance is accepted from the Safari profile.
+
+- space requests and retry throttles
+  Every request goes through one Pacer, one second apart by default. A
+  429 that outlasts the retries keeps the site's Retry-After. Sign-in is
+  paced but not retried.
+
+### Dependencies
+
+- net-kit: 0.1.2 -> 0.2.0
+
+
 ## twlnz-api/v0.2.1 (2026-09-18)
 
 ### Fixes

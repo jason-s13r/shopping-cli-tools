@@ -1,5 +1,12 @@
 # Changelog
 
+## farmers-api/v0.1.1 (2026-09-27)
+
+### Dependencies
+
+- net-kit: 0.1.2 -> 0.2.0
+
+
 ## farmers-api/v0.1.0 (2026-09-18)
 
 ### Features

@@ -1,5 +1,19 @@
 # Changelog
 
+## net-kit/v0.2.0 (2026-09-27)
+
+### Features
+
+- pace requests and back off on throttling
+  Pacer spaces requests with governor and retries 429/503 on a Fibonacci
+  backoff with backon, honouring a Retry-After up to the backoff ceiling.
+
+### Fixes
+
+- release consumers onto net-kit 0.2.0
+  0.2.0 is outside every consumer's ^0.1 range; dispat only rewrites ranges of releasing packages.
+
+
 ## net-kit/v0.1.2 (2026-09-18)
 
 ### Fixes

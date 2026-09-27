@@ -1,5 +1,14 @@
 # Changelog
 
+## kmart-cli/v0.2.2 (2026-09-27)
+
+### Dependencies
+
+- net-kit: 0.1.2 -> 0.2.0
+- kmart-api: 0.2.1 -> 0.2.2
+- build-kit: 0.3.0 -> 0.3.1
+
+
 ## kmart-cli/v0.2.1 (2026-09-18)
 
 ### Fixes

@@ -1,5 +1,24 @@
 # Changelog
 
+## the-warehouse-nz-cli/v0.3.0 (2026-09-27)
+
+### Features
+
+- pass the sign-in challenge with camoufox
+  A headless camoufox clears /login and its Cloudflare cookies are filed
+  for later runs. --headful shows the window; doctor reports the browser.
+
+- configurable request interval
+  TWLNZ_REQUEST_INTERVAL or network.request_interval sets the gap between
+  requests; 0 turns it off. doctor reports it.
+
+### Dependencies
+
+- net-kit: 0.1.2 -> 0.2.0
+- twlnz-api: 0.2.1 -> 0.3.0
+- build-kit: 0.3.0 -> 0.3.1
+
+
 ## the-warehouse-nz-cli/v0.2.1 (2026-09-18)
 
 ### Fixes
