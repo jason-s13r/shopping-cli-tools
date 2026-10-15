@@ -1,5 +1,14 @@
 # Changelog
 
+## wwnz-api/v0.1.4 (2026-10-15)
+
+### Fixes
+
+- emulate Firefox 151 so Auth0 skips the sign-in CAPTCHA
+  Auth0 enforces the sign-in CAPTCHA only on fingerprints it distrusts.
+  Firefox 139 now gets a bare 400 at the email step; 151 signs in.
+
+
 ## wwnz-api/v0.1.3 (2026-09-27)
 
 ### Dependencies

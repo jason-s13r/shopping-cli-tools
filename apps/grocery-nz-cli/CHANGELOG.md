@@ -1,5 +1,12 @@
 # Changelog
 
+## grocery-nz-cli/v0.3.4 (2026-10-15)
+
+### Dependencies
+
+- wwnz-api: 0.1.3 -> 0.1.4
+
+
 ## grocery-nz-cli/v0.3.3 (2026-09-27)
 
 ### Dependencies

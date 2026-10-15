@@ -1,6 +1,6 @@
 [package]
 name = "wwnz-api"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 description = "Client for the Woolworths NZ GraphQL API and its Auth0 login flow"
 license = "MIT"

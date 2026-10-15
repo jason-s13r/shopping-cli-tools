@@ -2915,7 +2915,7 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "woolworths-nz-cli"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "assert_cmd",
  "async-trait",
@@ -3023,7 +3023,7 @@ checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
 
 [[package]]
 name = "wwnz-api"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "net-kit",
  "serde",
