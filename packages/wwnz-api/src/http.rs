@@ -10,7 +10,12 @@ use net_kit::ClientSpec;
 /// value -- including the `User-Agent` -- which is why nothing here sets a user
 /// agent by hand: a header naming a different Firefox than the handshake is
 /// exactly the inconsistency being watched for.
-pub const EMULATION: Profile = Profile::Firefox139;
+///
+/// The version is load-bearing. Auth0 enforces the sign-in CAPTCHA only on
+/// fingerprints it distrusts: measured 2026-10-15, `Firefox139` and
+/// `Firefox148` are refused at the email step with a bare 400, `Firefox151`
+/// is not.
+pub const EMULATION: Profile = Profile::Firefox151;
 
 /// Firefox, **no cookie jar**, and **no redirect policy**.
 ///
